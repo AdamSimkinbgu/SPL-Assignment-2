@@ -1,6 +1,8 @@
 package bgu.spl.mics;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A Future object represents a promised result - an object that will
@@ -12,17 +14,16 @@ import java.util.concurrent.TimeUnit;
  */
 public class Future<T> {
 
-	private T result;
-	private boolean isDone;
+	private AtomicReference<T> result;
+	private AtomicBoolean isDone;
 
 	/**
 	 * This should be the the only public constructor in this class.
 	 */
 	public Future() {
-		this.result = null;
-		this.isDone = false;
+		this.result = new AtomicReference<T>(null);
+		this.isDone = new AtomicBoolean(false);
 	}
-
 	/**
 	 * retrieves the result the Future object holds if it has been resolved.
 	 * This is a blocking method! It waits for the computation in case it has
@@ -33,26 +34,22 @@ public class Future<T> {
 	 *         is available.
 	 * 
 	 */
-	public synchronized T get() {
-		while (!isDone) {
-			try {
-				wait();
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			}
-		}
-		return result;
+	public T get() {
+		return result.get();
 	}
 
 	/**
 	 * Resolves the result of this Future object.
 	 */
-	public synchronized void resolve(T result) {
-		if (!isDone) {
-			this.result = result;
-			this.isDone = true;
-			notifyAll();
-		}
+	public void resolve(T result) {
+		Future<T> oldVal;
+		Future<T> newVal;
+		do {
+			oldVal = this;
+			newVal = new Future<T>();
+			newVal.result.set(result);
+			newVal.isDone.set(true);
+		} while (!this.compareAndSet(oldVal, newVal));
 	}
 
 	/**
