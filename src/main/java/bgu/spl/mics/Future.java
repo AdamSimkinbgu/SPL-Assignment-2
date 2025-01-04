@@ -11,56 +11,87 @@ import java.util.concurrent.TimeUnit;
  * No public constructor is allowed except for the empty constructor.
  */
 public class Future<T> {
-	
+
+	private T result;
+	private boolean isDone;
+
 	/**
 	 * This should be the the only public constructor in this class.
 	 */
 	public Future() {
-		//TODO: implement this
+		this.result = null;
+		this.isDone = false;
 	}
-	
+
 	/**
-     * retrieves the result the Future object holds if it has been resolved.
-     * This is a blocking method! It waits for the computation in case it has
-     * not been completed.
-     * <p>
-     * @return return the result of type T if it is available, if not wait until it is available.
-     * 	       
-     */
-	public T get() {
-		//TODO: implement this.
-		return null;
+	 * retrieves the result the Future object holds if it has been resolved.
+	 * This is a blocking method! It waits for the computation in case it has
+	 * not been completed.
+	 * <p>
+	 * 
+	 * @return return the result of type T if it is available, if not wait until it
+	 *         is available.
+	 * 
+	 */
+	public synchronized T get() {
+		while (!isDone) {
+			try {
+				wait();
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+		}
+		return result;
 	}
-	
+
 	/**
-     * Resolves the result of this Future object.
-     */
-	public void resolve (T result) {
-		//TODO: implement this.
+	 * Resolves the result of this Future object.
+	 */
+	public synchronized void resolve(T result) {
+		if (!isDone) {
+			this.result = result;
+			this.isDone = true;
+			notifyAll();
+		}
 	}
-	
+
 	/**
-     * @return true if this object has been resolved, false otherwise
-     */
-	public boolean isDone() {
-		//TODO: implement this.
-		return false;
+	 * @return true if this object has been resolved, false otherwise
+	 */
+	public synchronized boolean isDone() {
+		return isDone;
 	}
-	
+
 	/**
-     * retrieves the result the Future object holds if it has been resolved,
-     * This method is non-blocking, it has a limited amount of time determined
-     * by {@code timeout}
-     * <p>
-     * @param timout 	the maximal amount of time units to wait for the result.
-     * @param unit		the {@link TimeUnit} time units to wait.
-     * @return return the result of type T if it is available, if not, 
-     * 	       wait for {@code timeout} TimeUnits {@code unit}. If time has
-     *         elapsed, return null.
-     */
-	public T get(long timeout, TimeUnit unit) {
-		//TODO: implement this.
-		return null;
+	 * retrieves the result the Future object holds if it has been resolved,
+	 * This method is non-blocking, it has a limited amount of time determined
+	 * by {@code timeout}
+	 * <p>
+	 * 
+	 * @param timout the maximal amount of time units to wait for the result.
+	 * @param unit   the {@link TimeUnit} time units to wait.
+	 * @return return the result of type T if it is available, if not,
+	 *         wait for {@code timeout} TimeUnits {@code unit}. If time has
+	 *         elapsed, return null.
+	 */
+	public synchronized T get(long timeout, TimeUnit unit) {
+		if (!isDone) {
+			long millisToWait = unit.toMillis(timeout);
+			long startTime = System.currentTimeMillis();
+			long elapsed = 0;
+
+			while (!isDone && elapsed < millisToWait) {
+				long remaining = millisToWait - elapsed;
+				try {
+					wait(remaining);
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					break;
+				}
+				elapsed = System.currentTimeMillis() - startTime;
+			}
+		}
+		return isDone ? result : null;
 	}
 
 }
