@@ -13,16 +13,14 @@ import java.util.concurrent.atomic.AtomicReference;
  * No public constructor is allowed except for the empty constructor.
  */
 public class Future<T> {
-
-	private AtomicReference<T> result;
-	private AtomicBoolean isDone;
-
+	private T result;
+	private Boolean isDone;
 	/**
 	 * This should be the the only public constructor in this class.
 	 */
 	public Future() {
-		this.result = new AtomicReference<T>(null);
-		this.isDone = new AtomicBoolean(false);
+		this.result = null;
+		this.isDone = false;
 	}
 	/**
 	 * retrieves the result the Future object holds if it has been resolved.
@@ -34,22 +32,26 @@ public class Future<T> {
 	 *         is available.
 	 * 
 	 */
-	public T get() {
-		return result.get();
+	public synchronized T get() {
+		while (!isDone) {
+			try {
+				wait();
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+		}
+		return result;
 	}
 
 	/**
 	 * Resolves the result of this Future object.
 	 */
-	public void resolve(T result) {
-		Future<T> oldVal;
-		Future<T> newVal;
-		do {
-			oldVal = this;
-			newVal = new Future<T>();
-			newVal.result.set(result);
-			newVal.isDone.set(true);
-		} while (!this.compareAndSet(oldVal, newVal));
+	public synchronized void resolve(T result) {
+		if (!isDone) {
+			this.result = result;
+			isDone = true;
+			notifyAll();
+		}
 	}
 
 	/**
