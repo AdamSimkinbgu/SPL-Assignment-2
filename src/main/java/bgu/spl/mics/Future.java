@@ -1,5 +1,4 @@
 package bgu.spl.mics;
-
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -11,10 +10,8 @@ import java.util.concurrent.TimeUnit;
  * No public constructor is allowed except for the empty constructor.
  */
 public class Future<T> {
-
 	private T result;
-	private boolean isDone;
-
+	private Boolean isDone;
 	/**
 	 * This should be the the only public constructor in this class.
 	 */
@@ -22,7 +19,6 @@ public class Future<T> {
 		this.result = null;
 		this.isDone = false;
 	}
-
 	/**
 	 * retrieves the result the Future object holds if it has been resolved.
 	 * This is a blocking method! It waits for the computation in case it has
@@ -50,7 +46,7 @@ public class Future<T> {
 	public synchronized void resolve(T result) {
 		if (!isDone) {
 			this.result = result;
-			this.isDone = true;
+			isDone = true;
 			notifyAll();
 		}
 	}
