@@ -20,4 +20,25 @@ public class TrackedObject {
         this.description = description;
         this.points = new ArrayList<>();
     }
+
+    public String getID() {
+        return id;
+    }
+
+    public int getTime() {
+        return time;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public ArrayList<CloudPoint> getPoints() {
+        return points;
+    }
+
+    public void addPoint(CloudPoint point) {
+        points.add(point);
+    }
+
 }

@@ -16,7 +16,15 @@ public class StatisticalFolder {
                               // environment, this count is updated only when new landmarks are added to the
                               // map
 
-    public StatisticalFolder() {
+    public static StatisticalFolder getInstance() {
+        return StatisticalFolderHolder.instance;
+    }
+
+    private static class StatisticalFolderHolder {
+        private static final StatisticalFolder instance = new StatisticalFolder();
+    }
+
+    private StatisticalFolder() {
         systemRuntime = 0;
         numDetectedObjects = 0;
         numTrackedObjects = 0;
