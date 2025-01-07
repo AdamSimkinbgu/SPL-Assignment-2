@@ -4,9 +4,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * The {@link MessageBusImpl class is the implementation of the MessageBus interface.
+ * The {@link MessageBusImpl class is the implementation of the MessageBus
+ * interface.
  * Write your implementation here!
- * Only one public method (in addition to getters which can be public solely for unit testing) may be added to this class
+ * Only one public method (in addition to getters which can be public solely for
+ * unit testing) may be added to this class
  * All other methods and members you add the class must be private.
  */
 public class MessageBusImpl implements MessageBus {
@@ -18,12 +20,11 @@ public class MessageBusImpl implements MessageBus {
 	private final Object eventLock, broadcastLock;
 
 	public MessageBusImpl getInstance() {
-		if(instance == null) {
+		if (instance == null) {
 			instance = new MessageBusImpl();
 		}
 		return instance;
 	}
-
 
 	private MessageBusImpl() {
 		this.microhashmap = new ConcurrentHashMap<>();
@@ -71,14 +72,14 @@ public class MessageBusImpl implements MessageBus {
 			broadcastLock.notifyAll();
 		}
 	}
-	
+
 	@Override
 	public <T> Future<T> sendEvent(Event<T> e) {
 		synchronized (eventLock) {
 			while (eventshashmap.get(e.getClass()) == null || eventshashmap.get(e.getClass()).isEmpty()) {
-				try{
+				try {
 					eventLock.wait();
-				} catch (InterruptedException ex){
+				} catch (InterruptedException ex) {
 					Thread.currentThread().interrupt();
 				}
 			}
@@ -88,9 +89,9 @@ public class MessageBusImpl implements MessageBus {
 			Future<T> future = new Future<>();
 			microhashmap.get(m).add(e);
 			return future;
-			}
 		}
 	}
+
 	@Override
 	public void register(MicroService m) {
 		this.microhashmap.putIfAbsent(m, new ConcurrentLinkedQueue<Message>());
@@ -117,7 +118,4 @@ public class MessageBusImpl implements MessageBus {
 		return microhashmap.get(m).poll();
 
 	}
-
-	
-
 }
