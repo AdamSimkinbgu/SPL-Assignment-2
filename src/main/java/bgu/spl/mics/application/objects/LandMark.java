@@ -17,4 +17,24 @@ public class LandMark {
         Description = description;
         points = new ArrayList<CloudPoint>();
     }
+
+    public String getID() {
+        return id;
+    }
+
+    public String getDescription() {
+        return Description;
+    }
+
+    public ArrayList<CloudPoint> getPoints() {
+        return points;
+    }
+
+    public void addPoint(CloudPoint point) {
+        points.add(point);
+    }
+
+    public void clearPoints() {
+        points.clear();
+    }
 }

@@ -14,4 +14,8 @@ public class StampedDetectedObjects {
         this.time = time;
         this.detectedObjects = new ArrayList<DetectedObject>();
     }
+
+    public int getTime() {
+        return time;
+    }
 }

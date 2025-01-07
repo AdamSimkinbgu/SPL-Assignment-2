@@ -15,9 +15,14 @@ public class LiDarDataBase {
      * @param filePath The path to the LiDAR data file.
      * @return The singleton instance of LiDarDataBase.
      */
+
     public static LiDarDataBase getInstance(String filePath) {
         if (instance == null) {
-            instance = new LiDarDataBase(filePath);
+            // Double check locking - this is thread safe but maybe not the best solution
+            synchronized (LiDarDataBase.class) {
+                if (instance == null)
+                    instance = new LiDarDataBase(filePath);
+            }
         }
         return instance;
     }

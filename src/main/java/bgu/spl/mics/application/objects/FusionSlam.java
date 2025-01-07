@@ -14,6 +14,8 @@ public class FusionSlam {
     private ArrayList<LandMark> landmarks;
     private ArrayList<Pose> poses;
 
+    // correct implementation of the Singleton pattern according to the practical
+    // class
     private FusionSlam() {
         this.landmarks = new ArrayList<LandMark>();
         this.poses = new ArrayList<Pose>();
