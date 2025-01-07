@@ -74,10 +74,23 @@ public class MessageBusImpl implements MessageBus {
 	
 	@Override
 	public <T> Future<T> sendEvent(Event<T> e) {
-		// TODO Auto-generated method stub
-		return null;
+		synchronized (eventLock) {
+			while (eventshashmap.get(e.getClass()) == null || eventshashmap.get(e.getClass()).isEmpty()) {
+				try{
+					eventLock.wait();
+				} catch (InterruptedException ex){
+					Thread.currentThread().interrupt();
+				}
+			}
+			ConcurrentLinkedQueue<MicroService> eventQueue = eventshashmap.get(e.getClass());
+			MicroService m = eventQueue.poll();
+			eventQueue.add(m);
+			Future<T> future = new Future<>();
+			microhashmap.get(m).add(e);
+			return future;
+			}
+		}
 	}
-
 	@Override
 	public void register(MicroService m) {
 		this.microhashmap.putIfAbsent(m, new ConcurrentLinkedQueue<Message>());
