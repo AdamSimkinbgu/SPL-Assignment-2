@@ -10,12 +10,16 @@ public class StampedDetectedObjects {
     private int time; // the timestamp of the detected objects
     private ArrayList<DetectedObject> detectedObjects; // list of detected objects
 
-    public StampedDetectedObjects(int time) {
+    public StampedDetectedObjects(int time, ArrayList<DetectedObject> detectedObjects) {
         this.time = time;
-        this.detectedObjects = new ArrayList<DetectedObject>();
+        this.detectedObjects = detectedObjects;
     }
 
     public int getTime() {
         return time;
+    }
+
+    public ArrayList<DetectedObject> getDetectedObjects() {
+        return detectedObjects;
     }
 }

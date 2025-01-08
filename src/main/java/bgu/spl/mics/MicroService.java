@@ -135,6 +135,8 @@ public abstract class MicroService implements Runnable {
      */
     protected final <T> void complete(Event<T> e, T result) {
         messageBus.complete(e, result);
+
+
     }
 
     /**
@@ -165,7 +167,7 @@ public abstract class MicroService implements Runnable {
     @Override
     public final void run() {
         messageBus.register(this);
-        initialize();
+        this.initialize();
         while (!terminated) {
             try {
                 Message message = messageBus.awaitMessage(this);

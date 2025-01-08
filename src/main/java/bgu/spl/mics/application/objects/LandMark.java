@@ -16,7 +16,7 @@ public class LandMark {
     public LandMark(String id, String description) {
         this.id = id;
         Description = description;
-        points = new ArrayList<CloudPoint>();
+        points = new ArrayList<CloudPoint>(); // why this cunsturctor made???
     }
 
     public LandMark(String id, String description, List<CloudPoint> points) {
@@ -33,7 +33,7 @@ public class LandMark {
         return Description;
     }
 
-    public ArrayList<CloudPoint> getPoints() {
+    public List<CloudPoint> getPoints() {
         return points;
     }
 

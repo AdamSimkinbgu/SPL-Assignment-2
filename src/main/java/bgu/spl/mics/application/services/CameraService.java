@@ -1,10 +1,14 @@
 package bgu.spl.mics.application.services;
 
+import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import bgu.spl.mics.Callback;
 import bgu.spl.mics.MicroService;
 import bgu.spl.mics.application.Messages.DetectObjectsEvent;
+import bgu.spl.mics.application.Messages.TickBroadcast;
 import bgu.spl.mics.application.objects.Camera;
+import bgu.spl.mics.application.objects.DetectedObject;
 
 /**
  * CameraService is responsible for processing data from the camera and
@@ -35,6 +39,22 @@ public class CameraService extends MicroService {
      */
     @Override
     protected void initialize() {
-        // TODO Implement this
     }
+//        Thread cameraThread = new Thread(() -> {
+//            subscribeBroadcast(TickBroadcast.class, new Callback<TickBroadcast>() {
+//                @Override
+//                public void call(TickBroadcast c) {
+//                    List<DetectedObject> detected = camera.getDetectedObjects();
+//                    for (DetectedObject decetedObject : detected) {
+//                        detectedObjects
+//                    }
+//                }
+//            })
+//        }
+//        cameraThread.start();
+
+//
+//
+//    }
+//}
 }
