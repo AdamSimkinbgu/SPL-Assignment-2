@@ -31,7 +31,6 @@ public class MessageBusImpTest {
    // 1) Registration Tests
    // =====================
    @Test
-   // @Order(1)
    void testRegisterAndUnregister() {
       // We already registered microService in setUp()
       // Verify registration was successful in your own ways, e.g.:
