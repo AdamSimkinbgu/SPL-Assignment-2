@@ -4,31 +4,40 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * The {@link MessageBusImpl class is the implementation of the MessageBus interface.
+ * The {@link MessageBusImpl class is the implementation of the MessageBus
+ * interface.
  * Write your implementation here!
- * Only one public method (in addition to getters which can be public solely for unit testing) may be added to this class
+ * Only one public method (in addition to getters which can be public solely for
+ * unit testing) may be added to this class
  * All other methods and members you add the class must be private.
  */
 public class MessageBusImpl implements MessageBus {
+	private static class SingletonHolder {
+		private static MessageBusImpl instance = new MessageBusImpl();
+	}
 
-	private static MessageBusImpl instance = null;
+	// private static MessageBusImpl instance;
 	private ConcurrentHashMap<MicroService, ConcurrentLinkedQueue<Message>> microhashmap;
 	private ConcurrentHashMap<Class<? extends Event<?>>, ConcurrentLinkedQueue<MicroService>> eventshashmap;
 	private ConcurrentHashMap<Class<? extends Broadcast>, ConcurrentLinkedQueue<MicroService>> broadcasthashmap;
+	private ConcurrentHashMap<Event<?>, Future<?>> futurehashmap;
 	private final Object eventLock, broadcastLock;
 
-	public MessageBusImpl getInstance() {
-		if(instance == null) {
-			instance = new MessageBusImpl();
-		}
-		return instance;
+	public static MessageBusImpl getInstance() {
+		return SingletonHolder.instance;
 	}
-
+	// public MessageBusImpl getInstance() {
+	// if (instance == null) {
+	// instance = new MessageBusImpl();
+	// }
+	// return instance;
+	// }
 
 	private MessageBusImpl() {
 		this.microhashmap = new ConcurrentHashMap<>();
 		this.eventshashmap = new ConcurrentHashMap<>();
 		this.broadcasthashmap = new ConcurrentHashMap<>();
+		this.futurehashmap = new ConcurrentHashMap<>();
 		this.eventLock = new Object();
 		this.broadcastLock = new Object();
 	}
@@ -51,7 +60,10 @@ public class MessageBusImpl implements MessageBus {
 
 	@Override
 	public <T> void complete(Event<T> e, T result) {
-		// TODO Auto-generated method stub
+		Future<T> future = (Future<T>) futurehashmap.remove(e);
+		if (future != null) {
+			future.resolve(result);
+		}
 
 	}
 
@@ -71,25 +83,26 @@ public class MessageBusImpl implements MessageBus {
 			broadcastLock.notifyAll();
 		}
 	}
-	
+
 	@Override
 	public <T> Future<T> sendEvent(Event<T> e) {
 		synchronized (eventLock) {
 			while (eventshashmap.get(e.getClass()) == null || eventshashmap.get(e.getClass()).isEmpty()) {
-				try{
+				try {
 					eventLock.wait();
-				} catch (InterruptedException ex){
+				} catch (InterruptedException ex) {
 					Thread.currentThread().interrupt();
 				}
 			}
 			ConcurrentLinkedQueue<MicroService> eventQueue = eventshashmap.get(e.getClass());
 			MicroService m = eventQueue.poll();
+			futurehashmap.put(e, new Future<T>()); // added this for the complete method
 			eventQueue.add(m);
 			Future<T> future = new Future<>();
 			microhashmap.get(m).add(e);
 			return future;
-			}
 		}
+	}
 
 	@Override
 	public void register(MicroService m) {
@@ -117,7 +130,4 @@ public class MessageBusImpl implements MessageBus {
 		return microhashmap.get(m).poll();
 
 	}
-
-	
-
 }

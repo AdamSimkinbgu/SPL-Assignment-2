@@ -1,6 +1,10 @@
 package bgu.spl.mics.application.services;
 
+import java.util.concurrent.ConcurrentLinkedQueue;
+
 import bgu.spl.mics.MicroService;
+import bgu.spl.mics.application.Messages.DetectObjectsEvent;
+import bgu.spl.mics.application.objects.Camera;
 
 /**
  * CameraService is responsible for processing data from the camera and
@@ -10,6 +14,8 @@ import bgu.spl.mics.MicroService;
  * the system's StatisticalFolder upon sending its observations.
  */
 public class CameraService extends MicroService {
+    private Camera camera;
+    private ConcurrentLinkedQueue<DetectObjectsEvent> detectedObjects;
 
     /**
      * Constructor for CameraService.
@@ -17,13 +23,14 @@ public class CameraService extends MicroService {
      * @param camera The Camera object that this service will use to detect objects.
      */
     public CameraService(Camera camera) {
-        super("Change_This_Name");
+        super("CamaeraService" + camera);
         // TODO Implement this
     }
 
     /**
      * Initializes the CameraService.
-     * Registers the service to handle TickBroadcasts and sets up callbacks for sending
+     * Registers the service to handle TickBroadcasts and sets up callbacks for
+     * sending
      * DetectObjectsEvents.
      */
     @Override
