@@ -90,7 +90,7 @@ public class MessageBusImpl implements MessageBus {
 			return future;
 			}
 		}
-	}
+
 	@Override
 	public void register(MicroService m) {
 		this.microhashmap.putIfAbsent(m, new ConcurrentLinkedQueue<Message>());
