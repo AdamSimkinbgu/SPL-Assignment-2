@@ -16,7 +16,6 @@ public class MessageBusImpl implements MessageBus {
 		private static MessageBusImpl instance = new MessageBusImpl();
 	}
 
-	// private static MessageBusImpl instance;
 	private ConcurrentHashMap<MicroService, ConcurrentLinkedQueue<Message>> microhashmap;
 	private ConcurrentHashMap<Class<? extends Event<?>>, ConcurrentLinkedQueue<MicroService>> eventshashmap;
 	private ConcurrentHashMap<Class<? extends Broadcast>, ConcurrentLinkedQueue<MicroService>> broadcasthashmap;
@@ -26,12 +25,6 @@ public class MessageBusImpl implements MessageBus {
 	public static MessageBusImpl getInstance() {
 		return SingletonHolder.instance;
 	}
-	// public MessageBusImpl getInstance() {
-	// if (instance == null) {
-	// instance = new MessageBusImpl();
-	// }
-	// return instance;
-	// }
 
 	private MessageBusImpl() {
 		this.microhashmap = new ConcurrentHashMap<>();
@@ -63,8 +56,7 @@ public class MessageBusImpl implements MessageBus {
 		Future<T> future = (Future<T>) futurehashmap.remove(e);
 		if (future != null) {
 			future.resolve(result);
-		}
-
+		} // where do we notify the message bus that the event is done??
 	}
 
 	@Override
@@ -86,23 +78,23 @@ public class MessageBusImpl implements MessageBus {
 
 	@Override
 	public <T> Future<T> sendEvent(Event<T> e) {
-		synchronized (eventLock) {
-			while (eventshashmap.get(e.getClass()) == null || eventshashmap.get(e.getClass()).isEmpty()) {
-				try {
-					eventLock.wait();
-				} catch (InterruptedException ex) {
-					Thread.currentThread().interrupt();
-				}
-			}
+		synchronized (eventLock){
 			ConcurrentLinkedQueue<MicroService> eventQueue = eventshashmap.get(e.getClass());
-			MicroService m = eventQueue.poll();
-			futurehashmap.put(e, new Future<T>()); // added this for the complete method
-			eventQueue.add(m);
-			Future<T> future = new Future<>();
-			microhashmap.get(m).add(e);
-			return future;
+			if (eventQueue == null || eventQueue.isEmpty()) {
+				return null;
+			}
+			else{
+				MicroService m = eventQueue.poll();
+				eventQueue.add(m);
+				Future<T> future = new Future<>();
+				futurehashmap.put(e, future);
+				microhashmap.get(m).add(e);
+				eventLock.notifyAll();
+				return future;
+			}
 		}
 	}
+
 
 	@Override
 	public void register(MicroService m) {
