@@ -27,6 +27,7 @@ public abstract class MicroService implements Runnable {
     private final String name;
     private MessageBus messageBus;
     private ConcurrentHashMap<Class<? extends Message>, Callback<?>> callbacks;
+    protected String outputFilePath = "output.json";
 
     /**
      * @param name the micro-service name (used mainly for debugging purposes -
@@ -135,7 +136,6 @@ public abstract class MicroService implements Runnable {
      */
     protected final <T> void complete(Event<T> e, T result) {
         messageBus.complete(e, result);
-
 
     }
 
