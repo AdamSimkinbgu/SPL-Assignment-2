@@ -33,28 +33,14 @@ public class CameraService extends MicroService {
 
     /**
      * Initializes the CameraService.
-     * Registers the service to handle TickBroadcasts and sets up callbacks for
+     * Registers the service to handle TickBroadcasts, TerminatedBroadcast, CrashedBroadcast and sets up callbacks for
      * sending
      * DetectObjectsEvents.
      */
     @Override
     protected void initialize() {
-    }
-//        Thread cameraThread = new Thread(() -> {
-//            subscribeBroadcast(TickBroadcast.class, new Callback<TickBroadcast>() {
-//                @Override
-//                public void call(TickBroadcast c) {
-//                    List<DetectedObject> detected = camera.getDetectedObjects();
-//                    for (DetectedObject decetedObject : detected) {
-//                        detectedObjects
-//                    }
-//                }
-//            })
-//        }
-//        cameraThread.start();
+        subscribeBroadcast(TickBroadcast.class, (TickBroadcast tickbroadcast) -> {
 
-//
-//
-//    }
-//}
+        });
+    }
 }
