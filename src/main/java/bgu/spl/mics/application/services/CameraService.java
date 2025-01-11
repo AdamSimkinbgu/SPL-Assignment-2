@@ -1,14 +1,25 @@
 package bgu.spl.mics.application.services;
 
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
 import bgu.spl.mics.Callback;
 import bgu.spl.mics.MicroService;
+import bgu.spl.mics.application.Messages.CrashedBroadcast;
 import bgu.spl.mics.application.Messages.DetectObjectsEvent;
+import bgu.spl.mics.application.Messages.TerminatedBroadcast;
 import bgu.spl.mics.application.Messages.TickBroadcast;
 import bgu.spl.mics.application.objects.Camera;
 import bgu.spl.mics.application.objects.DetectedObject;
+import bgu.spl.mics.application.objects.STATUS;
+import bgu.spl.mics.application.objects.StampedDetectedObjects;
+import bgu.spl.mics.application.objects.StatisticalFolder;
 
 /**
  * CameraService is responsible for processing data from the camera and
@@ -19,7 +30,7 @@ import bgu.spl.mics.application.objects.DetectedObject;
  */
 public class CameraService extends MicroService {
     private Camera camera;
-    private ConcurrentLinkedQueue<DetectObjectsEvent> detectedObjects;
+    private ConcurrentLinkedQueue<DetectObjectsEvent> eventQ;
 
     /**
      * Constructor for CameraService.
@@ -31,16 +42,115 @@ public class CameraService extends MicroService {
         // TODO Implement this
     }
 
+    private void crashCameraBroadcast() {
+        System.err.println("CameraService " + getName() + " crashed with error: " + camera.getErrorMsg());
+        sendBroadcast(new CrashedBroadcast(camera.getErrorMsg(), getName()));
+        terminate();
+    }
+
+    private void terminatedCameraBroadcast() {
+        System.err.println("CameraService " + getName() + " terminated");
+        sendBroadcast(new TerminatedBroadcast(getName()));
+        terminate();
+    }
+
     /**
      * Initializes the CameraService.
-     * Registers the service to handle TickBroadcasts, TerminatedBroadcast, CrashedBroadcast and sets up callbacks for
+     * Registers the service to handle TickBroadcasts and sets up callbacks for
      * sending
      * DetectObjectsEvents.
      */
     @Override
     protected void initialize() {
-        subscribeBroadcast(TickBroadcast.class, (TickBroadcast tickbroadcast) -> {
-
+        subscribeBroadcast(TickBroadcast.class, (TickBroadcast tick) -> {
+            int currTick = tick.getTick();
+            int dueTime = currTick + camera.getFrequency();
+            System.out.println("CameraService " + getName() + " got tick " + currTick);
+            if (camera.getStatus() == STATUS.UP) {
+                StampedDetectedObjects detectedObjects = camera.getDetectedObjects(currTick);
+                if (camera.getStatus() == STATUS.ERROR)
+                    crashCameraBroadcast();
+                else {
+                    if (detectedObjects != null) {
+                        DetectObjectsEvent newEvent = new DetectObjectsEvent(getName(), dueTime, detectedObjects);
+                        eventQ.add(newEvent);
+                    }
+                    while (!eventQ.isEmpty()) {
+                        DetectObjectsEvent event = eventQ.peek();
+                        if (event.getSentTime() > currTick)
+                            break; // no events are due yet
+                        else {
+                            event = eventQ.poll();
+                            sendEvent(event);
+                            // TODO FIX LATER
+                            // System.out.println("CameraService " + getName() + " sent DetectObjectsEvent
+                            // at tick " + dueTime);
+                            // StatisticalFolder.getInstance().addDetectedObjects(event.getDetectorName(),
+                            // event.getDetectedObjects());
+                        }
+                    }
+                }
+                if (camera.getStatus() == STATUS.DOWN)
+                    terminatedCameraBroadcast(); // camera crashed
+            } else
+                terminatedCameraBroadcast(); // camera was not up
+        });
+        subscribeBroadcast(TerminatedBroadcast.class, terminated -> {
+            System.err.println("CameraService " + getName() + " terminated");
+            camera.setStatus(STATUS.DOWN);
+            terminate();
+        });
+        subscribeBroadcast(CrashedBroadcast.class, crash -> {
+            camera.setStatus(STATUS.DOWN);
+            // terminate(); ??
+        });
+        subscribeBroadcast(TerminatedBroadcast.class, Terminator -> {
+            // camera.setStatus(STATUS.DOWN); ??
+            terminate();
         });
     }
+    // private void updateOutputError(int time) {
+    // try (FileReader reader = new FileReader(outputFilePath)) {
+    // Gson gson = new Gson();
+    // JsonObject output = JsonParser.parseReader(reader).getAsJsonObject();
+    // String errorMsg = camera.getErrorMsg();
+    // output.addProperty("error", errorMsg);
+    // output.addProperty("faultySensor", "Camera" + camera.getID());
+    // JsonObject camData = new JsonObject();
+    // camData.addProperty("time", time);
+    // camData.add("detectedObjects", gson.toJsonTree(camera.getDetectedObjects()));
+
+    // }
+    // private void updateOutputLastFrame() {
+    // if (camera.getDetectedObjects().isEmpty()) {
+    // System.err.println("CameraService " + getName() + " detected no objects to
+    // output");
+    // return;
+    // }
+    // StampedDetectedObjects lastDetectedObjects = camera.getDetectedObjects()
+    // .get(camera.getDetectedObjects().size() - 1);
+    // try (FileReader reader = new FileReader(outputFilePath)) {
+    // Gson gson = new Gson();
+    // JsonObject output = JsonParser.parseReader(reader).getAsJsonObject();
+    // JsonObject cameraLastFrame = output.has("lastCamerasFrame") ?
+    // output.getAsJsonObject("lastCamerasFrame")
+    // : new JsonObject();
+    // JsonObject lastFrameJson = new JsonObject();
+    // lastFrameJson.addProperty("time", lastDetectedObjects.getTime());
+    // lastFrameJson.add("detectedObjects",
+    // gson.toJsonTree(lastDetectedObjects.getDetectedObjects()));
+    // cameraLastFrame.add("camera" + camera.getID(), lastFrameJson);
+    // output.add("lastCamerasFrame", cameraLastFrame);
+    // try (FileWriter writer = new FileWriter(outputFilePath)) {
+    // gson.toJson(output, writer);
+    // System.out.println("Last Frame of Camera " + camera.getID() + " was updated
+    // in " + outputFilePath);
+    // }
+    // } catch (Exception e) {
+    // System.err.println("Failed to update the camera's output file because of " +
+    // e.getMessage());
+    // }
+
+    // }
+
 }

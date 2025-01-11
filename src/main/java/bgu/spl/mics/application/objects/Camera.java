@@ -20,10 +20,11 @@ public class Camera {
     private int id;
     private int frequency;
     private STATUS status;
-    private List<DetectedObject> detectedObjects;
+    private List<StampedDetectedObjects> detectedObjects;
     private int timeLimit;
+    private String errorMsg = null;
 
-    public Camera(int id, int frequency, List<DetectedObject> detectedObjects, int timeLimit) {
+    public Camera(int id, int frequency, List<StampedDetectedObjects> detectedObjects, int timeLimit) {
         this.id = id;
         this.frequency = frequency;
         this.status = STATUS.UP;
@@ -84,16 +85,29 @@ public class Camera {
         this.status = status;
     }
 
-    public List<DetectedObject> getDetectedObjects() {
+    public List<StampedDetectedObjects> getDetectedObjects() {
         return detectedObjects;
     }
 
-    public void detectObject(DetectedObject object) {
-        detectedObjects.add(object);
+    public StampedDetectedObjects getDetectedObjects(int time) {
+        StampedDetectedObjects sdo = detectedObjects.stream().filter(d -> d.getTime() == time).findFirst().orElse(null);
+        if (sdo != null) {
+            DetectedObject error = sdo.getDetectedObjects().stream().filter(DetectedObject::isError).findFirst()
+                    .orElse(null);
+            if (error != null) {
+                setStatus(STATUS.DOWN);
+                errorMsg = error.getDescription();
+                return null;
+            }
+        }
+        return sdo;
     }
 
     public void clearDetectedObjects() {
         detectedObjects.clear();
     }
 
+    public String getErrorMsg() {
+        return errorMsg;
+    }
 }
