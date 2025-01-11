@@ -180,6 +180,7 @@ public abstract class MicroService implements Runnable {
             } catch (InterruptedException e) {
                 System.out.println("MicroService: " + name + " was interrupted");
                 Thread.currentThread().interrupt();
+
             }
         }
         messageBus.unregister(this);

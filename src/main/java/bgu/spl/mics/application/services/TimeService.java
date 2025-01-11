@@ -35,18 +35,7 @@ public class TimeService extends MicroService {
      */
     @Override
     protected void initialize() {
-        Thread timer = new Thread(() -> {
-        while (currentTick != TicksLifeSpan) {
-            try {
-                sendBroadcast(new TickBroadcast(currentTick));
-                currentTick++;
-                Thread.sleep(sleepTime);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-        this.terminate();
-        });
-        timer.start();
-    }
+        System.out.println("TimeService started");
+
+
 }

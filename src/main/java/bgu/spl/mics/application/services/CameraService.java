@@ -39,7 +39,7 @@ public class CameraService extends MicroService {
      */
     public CameraService(Camera camera) {
         super("CamaeraService" + camera);
-        // TODO Implement this
+
     }
 
     private void crashCameraBroadcast() {
@@ -68,7 +68,7 @@ public class CameraService extends MicroService {
             System.out.println("CameraService " + getName() + " got tick " + currTick);
             if (camera.getStatus() == STATUS.UP) {
                 StampedDetectedObjects detectedObjects = camera.getDetectedObjects(currTick);
-                if (camera.getStatus() == STATUS.ERROR)
+                if (camera.getStatus() == STATUS.ERROR) // camera got error during detecting objects
                     crashCameraBroadcast();
                 else {
                     if (detectedObjects != null) {
