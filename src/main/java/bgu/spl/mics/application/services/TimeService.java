@@ -1,6 +1,8 @@
 package bgu.spl.mics.application.services;
 
 import bgu.spl.mics.MicroService;
+import bgu.spl.mics.application.Messages.CrashedBroadcast;
+import bgu.spl.mics.application.Messages.TerminatedBroadcast;
 import bgu.spl.mics.application.Messages.TickBroadcast;
 
 /**
@@ -28,14 +30,28 @@ public class TimeService extends MicroService {
 
     }
 
-
     /**
      * Initializes the TimeService.
      * Starts broadcasting TickBroadcast messages and terminates after the specified duration.
      */
     @Override
     protected void initialize() {
-        System.out.println("TimeService started");
-
-
+        System.out.println(getName() + " started");
+        do {
+            sendBroadcast(new TickBroadcast(currentTick));
+            try {
+                Thread.sleep(sleepTime);
+            } catch (InterruptedException e) {
+                // TODO maybe change maybe not
+                System.out.println("TimeService was interrupted at tick " + currentTick);
+                sendBroadcast(new TerminatedBroadcast(getName()));
+                System.out.println(getName() + " terminated");
+                terminate();
+            }
+            currentTick++;
+        } while (currentTick < TicksLifeSpan);
+        sendBroadcast(new TerminatedBroadcast(getName()));
+        System.out.println(getName() + " terminated");
+        terminate();
+    }
 }

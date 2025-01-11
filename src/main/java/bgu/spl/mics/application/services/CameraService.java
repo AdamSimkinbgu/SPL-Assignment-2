@@ -38,7 +38,7 @@ public class CameraService extends MicroService {
      * @param camera The Camera object that this service will use to detect objects.
      */
     public CameraService(Camera camera) {
-        super("CamaeraService" + camera);
+        super("CameraService");
 
     }
 
@@ -62,6 +62,7 @@ public class CameraService extends MicroService {
      */
     @Override
     protected void initialize() {
+        System.out.println(getName() + " started");
         subscribeBroadcast(TickBroadcast.class, (TickBroadcast tick) -> {
             int currTick = tick.getTick();
             int dueTime = currTick + camera.getFrequency();
