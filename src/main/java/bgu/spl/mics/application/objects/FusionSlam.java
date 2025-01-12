@@ -68,4 +68,33 @@ public class FusionSlam {
     private LandMark findLankmark(String tObjID) {
         return landmarks.stream().filter(lm -> lm.getID().equals(tObjID)).findFirst().orElse(null);
     }
+
+    public ArrayList<LandMark> getLandmarks() {
+        return landmarks;
+    }
+
+    public Map<Integer, Pose> getPoses() {
+        return poses;
+    }
+
+    public int getTick() {
+        return tick;
+    }
+
+    public void increaseSensor() {
+        activeSensors.incrementAndGet();
+    }
+
+    public void decreaseSensor() {
+        activeSensors.decrementAndGet();
+    }
+
+    public void increaseCamera() {
+        activeCameras.incrementAndGet();
+    }
+
+    public void decreaseCamera() {
+        activeCameras.decrementAndGet();
+    }
+
 }

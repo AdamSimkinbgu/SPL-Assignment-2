@@ -17,11 +17,23 @@ import com.google.gson.JsonParser;
  * identified.
  */
 public class StatisticalFolder {
+<<<<<<< HEAD
     private int systemRuntime;
     private int numDetectedObjects;
     private int numTrackedObjects;
     private int numLandmarks;
     private String outputFilePath = "output_file_TESTING.json";
+=======
+    private int systemRuntime; // the total runtime of the system - measured in ticks.
+
+    private int numDetectedObjects; // the cumulative count of objects detected all cameras. This includes both
+                                    // initial detections and subsequent re-detections.
+    private int numTrackedObjects; // the cumulative count of objects tracked by all LiDAR workers, encompassing
+                                   // both new tracks and ongoing tracking of previously detected objects
+    private int numLandmarks; // the total number of unique landmarks identified and mapped within the
+                              // environment, this count is updated only when new landmarks are added to the
+                              // map
+>>>>>>> dev
 
     public static StatisticalFolder getInstance() {
         return StatisticalFolderHolder.instance;

@@ -19,7 +19,5 @@ public class StampedDetectedObjects {
         return time;
     }
 
-    public ArrayList<DetectedObject> getDetectedObjects() {
-        return detectedObjects;
-    }
+    public ArrayList<DetectedObject> getDetectedObjects() { return detectedObjects;}
 }

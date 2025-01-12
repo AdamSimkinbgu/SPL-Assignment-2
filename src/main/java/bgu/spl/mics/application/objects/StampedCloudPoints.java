@@ -19,4 +19,16 @@ public class StampedCloudPoints {
         this.points = points;
     }
 
+    public String getID() {
+        return id;
+    }
+
+    public int getTime() {
+        return time;
+    }
+
+    public ArrayList<CloudPoint> getPoints() {
+        return points;
+    }
+
 }

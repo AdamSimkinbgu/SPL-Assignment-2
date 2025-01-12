@@ -1,21 +1,35 @@
 package bgu.spl.mics.application.Messages;
 
 import bgu.spl.mics.Event;
+import bgu.spl.mics.application.objects.TrackedObject;
+
+import java.util.List;
 
 public class TrackedObjectsEvent implements Event<Boolean> {
-   private String errorMsg;
-   private String senderName;
+    private List<TrackedObject> trackedObjects;
+    private int detectionTime;
+    private int dueTime;
 
-   public TrackedObjectsEvent(String errorMsg, String senderName) {
-      this.errorMsg = errorMsg;
-      this.senderName = senderName;
-   }
 
-   public String getErrorMsg() {
-      return errorMsg;
-   }
 
-   public String getSenderName() {
-      return senderName;
-   }
+    public TrackedObjectsEvent(List<TrackedObject> trackedObjects, int detectionTime, int dueTime) {
+        this.trackedObjects = trackedObjects;
+        this.detectionTime = detectionTime;
+        this.dueTime = dueTime;
+
+    }
+
+    public List<TrackedObject> getTrackedObjects() {
+        return trackedObjects;
+    }
+
+    public int getDetectionTime() {
+        return detectionTime;
+    }
+
+    public int getDueTime() {
+        return dueTime;
+    }
+
+
 }

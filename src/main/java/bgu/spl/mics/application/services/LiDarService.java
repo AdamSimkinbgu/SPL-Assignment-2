@@ -6,6 +6,10 @@ import bgu.spl.mics.application.Messages.DetectObjectsEvent;
 import bgu.spl.mics.application.Messages.TerminatedBroadcast;
 import bgu.spl.mics.application.Messages.TickBroadcast;
 import bgu.spl.mics.application.objects.LiDarWorkerTracker;
+import bgu.spl.mics.application.objects.STATUS;
+import bgu.spl.mics.application.objects.TrackedObject;
+
+import java.util.ArrayList;
 
 /**
  * LiDarService is responsible for processing data from the LiDAR sensor and
@@ -43,6 +47,9 @@ public class LiDarService extends MicroService {
     protected void initialize() {
         System.out.println("LiDarService started");
         subscribeBroadcast(TickBroadcast.class, (TickBroadcast tick) -> {
+            int currTick = tick.getTick();
+            int dueTick = currTick + LiDarWorkerTracker.getFrequency();
+            System.out.println("LiDarService " + getName() + " got tick " + currTick);
 
         });
 
@@ -55,7 +62,14 @@ public class LiDarService extends MicroService {
         });
 
         subscribeEvent(DetectObjectsEvent.class, event -> { // here we send TrackedObjectEvents
-
+            int currTick = event.getSentTime();
+            int dueTick = currTick + LiDarWorkerTracker.getFrequency();
+            System.out.println("LiDarService " + getName() + " got tick " + currTick);
+            if (LiDarWorkerTracker.getStatus() == STATUS.UP) {
+                // process data
+                // send TrackedObjectsEvent
+                ArrayList<TrackedObject> trackedObjects = LiDarWorkerTracker.processData(event.getStampedDetectedObjects());
+            }
         });
     }
 }

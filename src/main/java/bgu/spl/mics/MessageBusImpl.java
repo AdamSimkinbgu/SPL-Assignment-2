@@ -16,10 +16,10 @@ public class MessageBusImpl implements MessageBus {
 		private static MessageBusImpl instance = new MessageBusImpl();
 	}
 
-	private ConcurrentHashMap<MicroService, ConcurrentLinkedQueue<Message>> microhashmap;
-	private ConcurrentHashMap<Class<? extends Event<?>>, ConcurrentLinkedQueue<MicroService>> eventshashmap;
-	private ConcurrentHashMap<Class<? extends Broadcast>, ConcurrentLinkedQueue<MicroService>> broadcasthashmap;
-	private ConcurrentHashMap<Event<?>, Future<?>> futurehashmap;
+	private final ConcurrentHashMap<MicroService, ConcurrentLinkedQueue<Message>> microhashmap;
+	private final ConcurrentHashMap<Class<? extends Event<?>>, ConcurrentLinkedQueue<MicroService>> eventshashmap;
+	private final ConcurrentHashMap<Class<? extends Broadcast>, ConcurrentLinkedQueue<MicroService>> broadcasthashmap;
+	private final ConcurrentHashMap<Event<?>, Future<?>> futurehashmap;
 
 	public static MessageBusImpl getInstance() {
 		return SingletonHolder.instance;
@@ -34,7 +34,7 @@ public class MessageBusImpl implements MessageBus {
 
 	@Override
 	public <T> void subscribeEvent(Class<? extends Event<T>> type, MicroService m) {
-		eventshashmap.putIfAbsent(type, new ConcurrentLinkedQueue<MicroService>());
+		eventshashmap.putIfAbsent(type, new ConcurrentLinkedQueue<>());
 		ConcurrentLinkedQueue<MicroService> eventQueue = eventshashmap.get(type);
 		synchronized (eventQueue) {
 			if (!eventQueue.contains(m)) {
@@ -46,13 +46,15 @@ public class MessageBusImpl implements MessageBus {
 
 	@Override
 	public void subscribeBroadcast(Class<? extends Broadcast> type, MicroService m) {
-		broadcasthashmap.putIfAbsent(type, new ConcurrentLinkedQueue<MicroService>());
+		broadcasthashmap.putIfAbsent(type, new ConcurrentLinkedQueue<>());
 		ConcurrentLinkedQueue<MicroService> broadcastQueue = broadcasthashmap.get(type);
 		synchronized (broadcastQueue) {
 			if (!broadcastQueue.contains(m)) {
 				broadcastQueue.add(m);
 				System.out.println("MicroService " + m.getName() + " subscribed to Broadcast " + type);
 			}
+			else
+				System.out.println("Error: MicroService " + m.getName() + " already subscribed to Broadcast " + type);
 		}
 	}
 
@@ -62,9 +64,7 @@ public class MessageBusImpl implements MessageBus {
 		if (future != null) {
 			future.resolve(result);
 		}
-		else {
-			System.out.println("Error: Future not found");
-		}
+		else System.out.println("Error: Future not found");
 	}
 
 	@Override

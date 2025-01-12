@@ -27,7 +27,6 @@ public class TimeService extends MicroService {
         this.TicksLifeSpan = Duration; // how many ticks the service will broadcast
         this.currentTick = 0;
         this.sleepTime = 1000 / TicksinSeconds;
-
     }
 
     /**
@@ -42,11 +41,8 @@ public class TimeService extends MicroService {
             try {
                 Thread.sleep(sleepTime);
             } catch (InterruptedException e) {
-                // TODO maybe change maybe not
                 System.out.println("TimeService was interrupted at tick " + currentTick);
-                sendBroadcast(new TerminatedBroadcast(getName()));
-                System.out.println(getName() + " terminated");
-                terminate();
+                break;
             }
             currentTick++;
         } while (currentTick < TicksLifeSpan);
