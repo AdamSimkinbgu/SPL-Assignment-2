@@ -1,7 +1,5 @@
 package bgu.spl.mics.application.objects;
 
-import jdk.jshell.Snippet;
-
 import java.util.ArrayList;
 
 /**
@@ -23,21 +21,12 @@ public class LiDarWorkerTracker {
         this.lastTrackedObjects = new ArrayList<TrackedObject>();
     }
 
-    public ArrayList<TrackedObject> getLastTrackedObjects() {
-        // get tracked objects from LiDarDataBase
-        return lastTrackedObjects;
-    }
-
-    public STATUS getStatus() {
-        return status;
+    public int getID() {
+        return id;
     }
 
     public int getFrequency() {
         return frequency;
-    }
-
-    public int getId() {
-        return id;
     }
 
     public ArrayList<TrackedObject> calculateTrackedObjects(StampedDetectedObjects detectedObjects) {
@@ -56,4 +45,21 @@ public class LiDarWorkerTracker {
         return afterCalculateObjects;
 
     }
+
+    public STATUS getStatus() {
+        return status;
+    }
+
+    public void setStatus(STATUS status) {
+        this.status = status;
+    }
+
+    public boolean didDetectAny() {
+        return !lastTrackedObjects.isEmpty();
+    }
+
+    public TrackedObject getLastTrackedObject() {
+        return lastTrackedObjects.get(lastTrackedObjects.size() - 1);
+    }
+
 }

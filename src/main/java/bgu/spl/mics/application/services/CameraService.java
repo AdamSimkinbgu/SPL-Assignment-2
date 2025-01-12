@@ -108,48 +108,4 @@ public class CameraService extends MicroService {
         });
 
     }
-    // private void updateOutputError(int time) {
-    // try (FileReader reader = new FileReader(outputFilePath)) {
-    // Gson gson = new Gson();
-    // JsonObject output = JsonParser.parseReader(reader).getAsJsonObject();
-    // String errorMsg = camera.getErrorMsg();
-    // output.addProperty("error", errorMsg);
-    // output.addProperty("faultySensor", "Camera" + camera.getID());
-    // JsonObject camData = new JsonObject();
-    // camData.addProperty("time", time);
-    // camData.add("detectedObjects", gson.toJsonTree(camera.getDetectedObjects()));
-
-    // }
-    // private void updateOutputLastFrame() {
-    // if (camera.getDetectedObjects().isEmpty()) {
-    // System.err.println("CameraService " + getName() + " detected no objects to
-    // output");
-    // return;
-    // }
-    // StampedDetectedObjects lastDetectedObjects = camera.getDetectedObjects()
-    // .get(camera.getDetectedObjects().size() - 1);
-    // try (FileReader reader = new FileReader(outputFilePath)) {
-    // Gson gson = new Gson();
-    // JsonObject output = JsonParser.parseReader(reader).getAsJsonObject();
-    // JsonObject cameraLastFrame = output.has("lastCamerasFrame") ?
-    // output.getAsJsonObject("lastCamerasFrame")
-    // : new JsonObject();
-    // JsonObject lastFrameJson = new JsonObject();
-    // lastFrameJson.addProperty("time", lastDetectedObjects.getTime());
-    // lastFrameJson.add("detectedObjects",
-    // gson.toJsonTree(lastDetectedObjects.getDetectedObjects()));
-    // cameraLastFrame.add("camera" + camera.getID(), lastFrameJson);
-    // output.add("lastCamerasFrame", cameraLastFrame);
-    // try (FileWriter writer = new FileWriter(outputFilePath)) {
-    // gson.toJson(output, writer);
-    // System.out.println("Last Frame of Camera " + camera.getID() + " was updated
-    // in " + outputFilePath);
-    // }
-    // } catch (Exception e) {
-    // System.err.println("Failed to update the camera's output file because of " +
-    // e.getMessage());
-    // }
-
-    // }
-
 }
