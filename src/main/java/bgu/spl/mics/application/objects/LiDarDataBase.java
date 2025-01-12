@@ -2,6 +2,8 @@ package bgu.spl.mics.application.objects;
 
 import bgu.spl.mics.MessageBusImpl;
 
+import java.util.List;
+
 /**
  * LiDarDataBase is a singleton class responsible for managing LiDAR data.
  * It provides access to cloud point data and other relevant information for
@@ -9,6 +11,7 @@ import bgu.spl.mics.MessageBusImpl;
  */
 public class LiDarDataBase {
     private static String filePath;
+//    private List<StampedCloudPoints> stampedCloudPoints;
 
     /**
      * Returns the singleton instance of LiDarDataBase.
@@ -25,5 +28,12 @@ public class LiDarDataBase {
 
     private LiDarDataBase(String filePath) {
         this.filePath = filePath;
+        loadCloudPoints();
     }
+
+    private void loadCloudPoints() {
+        // load cloud points from file
+    }
+
+
 }

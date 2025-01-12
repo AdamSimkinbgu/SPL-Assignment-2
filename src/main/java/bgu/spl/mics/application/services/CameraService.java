@@ -102,13 +102,11 @@ public class CameraService extends MicroService {
             terminate();
         });
         subscribeBroadcast(CrashedBroadcast.class, crash -> {
+            System.err.println("CameraService " + getName() + " crashed with error: " + crash.getErrorMsg());
             camera.setStatus(STATUS.DOWN);
-            // terminate(); ??
-        });
-        subscribeBroadcast(TerminatedBroadcast.class, Terminator -> {
-            // camera.setStatus(STATUS.DOWN); ??
             terminate();
         });
+
     }
     // private void updateOutputError(int time) {
     // try (FileReader reader = new FileReader(outputFilePath)) {

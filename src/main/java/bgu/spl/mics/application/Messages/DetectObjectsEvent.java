@@ -6,12 +6,12 @@ import bgu.spl.mics.application.objects.StampedDetectedObjects;
 public class DetectObjectsEvent implements Event<StampedDetectedObjects> {
    private String detectorName;
    private int sentTime;
-   private StampedDetectedObjects detectedObjects;
+   private StampedDetectedObjects stampedDetectedObjects;
 
-   public DetectObjectsEvent(String detectorName, int sentTime, StampedDetectedObjects detectedObjects) {
+   public DetectObjectsEvent(String detectorName, int sentTime, StampedDetectedObjects stampedDetectedObjects) {
       this.detectorName = detectorName;
       this.sentTime = sentTime;
-      this.detectedObjects = detectedObjects;
+      this.stampedDetectedObjects = stampedDetectedObjects;
    }
 
    public String getDetectorName() {
@@ -22,7 +22,7 @@ public class DetectObjectsEvent implements Event<StampedDetectedObjects> {
       return sentTime;
    }
 
-   public StampedDetectedObjects getDetectedObjects() {
-      return detectedObjects;
+   public StampedDetectedObjects getStampedDetectedObjects() {
+      return stampedDetectedObjects;
    }
 }

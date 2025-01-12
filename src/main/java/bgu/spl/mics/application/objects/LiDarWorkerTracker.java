@@ -1,5 +1,7 @@
 package bgu.spl.mics.application.objects;
 
+import jdk.jshell.Snippet;
+
 import java.util.ArrayList;
 
 /**
@@ -21,4 +23,37 @@ public class LiDarWorkerTracker {
         this.lastTrackedObjects = new ArrayList<TrackedObject>();
     }
 
+    public ArrayList<TrackedObject> getLastTrackedObjects() {
+        // get tracked objects from LiDarDataBase
+        return lastTrackedObjects;
+    }
+
+    public STATUS getStatus() {
+        return status;
+    }
+
+    public int getFrequency() {
+        return frequency;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public ArrayList<TrackedObject> calculateTrackedObjects(StampedDetectedObjects detectedObjects) {
+        // calculate tracked objects from detected objects
+        ArrayList<TrackedObject> afterCalculateObjects = new ArrayList<>();
+        ArrayList<DetectedObject> detectedObject = detectedObjects.getDetectedObjects();
+        int detectedtime = detectedObjects.getTime();
+        for (DetectedObject detected : detectedObject) {
+            String id = detected.getId();
+            String description = detected.getDescription();
+            TrackedObject trackedObject = new TrackedObject(id, detectedtime, description);
+            afterCalculateObjects.add(trackedObject);
+            // TODO not finished.
+
+        }
+        return afterCalculateObjects;
+
+    }
 }

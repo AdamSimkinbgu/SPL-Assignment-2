@@ -8,6 +8,7 @@ package bgu.spl.mics.application.objects;
  */
 public class StatisticalFolder {
     private int systemRuntime; // the total runtime of the system - measured in ticks.
+
     private int numDetectedObjects; // the cumulative count of objects detected all cameras. This includes both
                                     // initial detections and subsequent re-detections.
     private int numTrackedObjects; // the cumulative count of objects tracked by all LiDAR workers, encompassing
