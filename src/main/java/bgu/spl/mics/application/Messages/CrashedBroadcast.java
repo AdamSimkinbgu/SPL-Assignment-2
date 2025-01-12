@@ -11,6 +11,7 @@ public class CrashedBroadcast implements Broadcast {
       this.Crasher = Crasher;
    }
 
+
    public String getErrorMsg() {
       return errorMsg;
    }

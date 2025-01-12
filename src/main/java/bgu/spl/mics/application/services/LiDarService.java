@@ -1,6 +1,10 @@
 package bgu.spl.mics.application.services;
 
 import bgu.spl.mics.MicroService;
+import bgu.spl.mics.application.Messages.CrashedBroadcast;
+import bgu.spl.mics.application.Messages.DetectObjectsEvent;
+import bgu.spl.mics.application.Messages.TerminatedBroadcast;
+import bgu.spl.mics.application.Messages.TickBroadcast;
 import bgu.spl.mics.application.objects.LiDarWorkerTracker;
 
 /**
@@ -12,24 +16,46 @@ import bgu.spl.mics.application.objects.LiDarWorkerTracker;
  * observations.
  */
 public class LiDarService extends MicroService {
-
+    private LiDarWorkerTracker LiDarWorkerTracker;
     /**
      * Constructor for LiDarService.
      *
      * @param LiDarWorkerTracker A LiDAR Tracker worker object that this service will use to process data.
      */
     public LiDarService(LiDarWorkerTracker LiDarWorkerTracker) {
-        super("Change_This_Name");
-        // TODO Implement this
+        super("LiDarService");
+        this.LiDarWorkerTracker = LiDarWorkerTracker;
+        // maybe more added later
     }
 
     /**
      * Initializes the LiDarService.
      * Registers the service to handle DetectObjectsEvents and TickBroadcasts,
      * and sets up the necessary callbacks for processing data.
+     * subscribes to  TickBroadcast, TerminatedBroadcast, CrashedBroadcast, DetectObjectsEvent
+     * Tick need current time
+     * Terminated needs nothing just the lidar name (getname())
+     * Crashed needs errormsg and lidar name
+     * DetectObjectsEvent needs lidar name, time that the stampedDetectedObjects was detected,
+     * and the stampedDetectedObjects itself
      */
     @Override
     protected void initialize() {
-        // TODO Implement this
+        System.out.println("LiDarService started");
+        subscribeBroadcast(TickBroadcast.class, (TickBroadcast tick) -> {
+
+        });
+
+        subscribeBroadcast(TerminatedBroadcast.class, (TerminatedBroadcast terminated) -> {
+
+        });
+
+        subscribeBroadcast(CrashedBroadcast.class, (CrashedBroadcast crashed) -> {
+
+        });
+
+        subscribeEvent(DetectObjectsEvent.class, event -> { // here we send TrackedObjectEvents
+
+        });
     }
 }

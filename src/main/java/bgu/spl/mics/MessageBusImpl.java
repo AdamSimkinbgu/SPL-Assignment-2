@@ -20,7 +20,6 @@ public class MessageBusImpl implements MessageBus {
 	private ConcurrentHashMap<Class<? extends Event<?>>, ConcurrentLinkedQueue<MicroService>> eventshashmap;
 	private ConcurrentHashMap<Class<? extends Broadcast>, ConcurrentLinkedQueue<MicroService>> broadcasthashmap;
 	private ConcurrentHashMap<Event<?>, Future<?>> futurehashmap;
-	private final Object eventLock, broadcastLock;
 
 	public static MessageBusImpl getInstance() {
 		return SingletonHolder.instance;
@@ -31,23 +30,29 @@ public class MessageBusImpl implements MessageBus {
 		this.eventshashmap = new ConcurrentHashMap<>();
 		this.broadcasthashmap = new ConcurrentHashMap<>();
 		this.futurehashmap = new ConcurrentHashMap<>();
-		this.eventLock = new Object();
-		this.broadcastLock = new Object();
 	}
 
 	@Override
 	public <T> void subscribeEvent(Class<? extends Event<T>> type, MicroService m) {
-		synchronized (eventLock) {
-			eventshashmap.putIfAbsent(type, new ConcurrentLinkedQueue<MicroService>());
-			eventshashmap.get(type).add(m);
+		eventshashmap.putIfAbsent(type, new ConcurrentLinkedQueue<MicroService>());
+		ConcurrentLinkedQueue<MicroService> eventQueue = eventshashmap.get(type);
+		synchronized (eventQueue) {
+			if (!eventQueue.contains(m)) {
+				eventQueue.add(m);
+				System.out.println("MicroService " + m.getName() + " subscribed to Event " + type);
+			}
 		}
 	}
 
 	@Override
 	public void subscribeBroadcast(Class<? extends Broadcast> type, MicroService m) {
-		synchronized (broadcastLock) {
-			broadcasthashmap.putIfAbsent(type, new ConcurrentLinkedQueue<MicroService>());
-			broadcasthashmap.get(type).add(m);
+		broadcasthashmap.putIfAbsent(type, new ConcurrentLinkedQueue<MicroService>());
+		ConcurrentLinkedQueue<MicroService> broadcastQueue = broadcasthashmap.get(type);
+		synchronized (broadcastQueue) {
+			if (!broadcastQueue.contains(m)) {
+				broadcastQueue.add(m);
+				System.out.println("MicroService " + m.getName() + " subscribed to Broadcast " + type);
+			}
 		}
 	}
 
@@ -56,65 +61,82 @@ public class MessageBusImpl implements MessageBus {
 		Future<T> future = (Future<T>) futurehashmap.remove(e);
 		if (future != null) {
 			future.resolve(result);
-		} // where do we notify the message bus that the event is done??
+		}
+		else {
+			System.out.println("Error: Future not found");
+		}
 	}
 
 	@Override
 	public void sendBroadcast(Broadcast b) {
-		synchronized (broadcastLock) {
-			while (broadcasthashmap.get(b.getClass()) == null) {
-				try {
-					broadcastLock.wait();
-				} catch (InterruptedException e) {
-					Thread.currentThread().interrupt();
+		ConcurrentLinkedQueue<MicroService> broadcastQueue = broadcasthashmap.get(b.getClass());
+		if (broadcastQueue != null) {
+			if (!(broadcastQueue.isEmpty())) {
+				synchronized (broadcastQueue) {
+					for (MicroService subscribedforb : broadcastQueue) {
+						if (microhashmap.get(subscribedforb) == null) {
+							System.out.println("Error: MicroService " + subscribedforb.getName() + " not found");
+						} else {
+							microhashmap.get(subscribedforb).add(b);
+						}
+					}
 				}
-			}
-			broadcasthashmap.get(b.getClass()).forEach(m -> {
-				microhashmap.get(m).add(b);
-			});
-			broadcastLock.notifyAll();
-		}
+			} else { System.out.println("Error: Broadcast " + b.getClass() + " Queue is empty");}
+		} else { System.out.println("Error: Broadcast " + b.getClass() + " not found");}
 	}
 
 	@Override
 	public <T> Future<T> sendEvent(Event<T> e) {
-		synchronized (eventLock){
-			ConcurrentLinkedQueue<MicroService> eventQueue = eventshashmap.get(e.getClass());
-			if (eventQueue == null || eventQueue.isEmpty()) {
-				return null;
-			}
-			else{
-				MicroService m = eventQueue.poll();
-				eventQueue.add(m);
-				Future<T> future = new Future<>();
-				futurehashmap.put(e, future);
-				microhashmap.get(m).add(e);
-				eventLock.notifyAll();
-				return future;
-			}
+		MicroService chosen = null;
+		ConcurrentLinkedQueue<MicroService> eventQueue = eventshashmap.get(e.getClass());
+		synchronized (eventQueue) {
+			if (eventQueue != null) {
+				if (!eventQueue.isEmpty()) {
+					do {
+						chosen = eventQueue.poll();
+					} while (!(chosen != null && microhashmap.containsKey(chosen)));
+					eventQueue.add(chosen);
+				} else { System.out.println("Error: Event " + e.getClass() + " has no subscribers"); return null; }
+			} else { System.out.println("Error: Event " + e.getClass() + " has no queue"); return null; }
 		}
+		Future<T> future = new Future<>();
+		futurehashmap.put(e, future);
+		microhashmap.get(chosen).add(e);
+		return future;
 	}
-
 
 	@Override
 	public void register(MicroService m) {
 		this.microhashmap.putIfAbsent(m, new ConcurrentLinkedQueue<Message>());
+		System.out.println("MicroService " + m.getName() + " registered");
 	}
 
 	@Override
 	public void unregister(MicroService m) {
-		synchronized (this) {
-			this.microhashmap.remove(m);
-			this.broadcasthashmap.forEach((k, v) -> v.remove(m));
-			this.eventshashmap.forEach((k, v) -> v.remove(m));
+		for (Message message : microhashmap.get(m)) {
+			if (message instanceof Event) {
+				ConcurrentLinkedQueue<MicroService> eventQueue = eventshashmap.get(message.getClass());
+				synchronized (eventQueue) {
+					eventQueue.remove(m);
+				}
+			}
+			else if (message instanceof Broadcast) {
+				ConcurrentLinkedQueue<MicroService> broadcastQueue = broadcasthashmap.get(message.getClass());
+				synchronized (broadcastQueue) {
+					broadcastQueue.remove(m);
+				}
+			}
+
 		}
+		this.microhashmap.remove(m);
+		System.out.println("MicroService " + m.getName() + " unregistered");
 	}
 
 	@Override
 	public Message awaitMessage(MicroService m) throws InterruptedException {
 		while (microhashmap.get(m).isEmpty()) {
 			try {
-				wait();
+				Thread.currentThread().wait();
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
 			}
