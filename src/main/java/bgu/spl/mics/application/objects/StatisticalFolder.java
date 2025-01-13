@@ -1,7 +1,12 @@
+
 package bgu.spl.mics.application.objects;
 
+import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,7 +37,7 @@ public class StatisticalFolder {
     }
 
     private StatisticalFolder() {
-        systemRuntime = 0;
+        systemRuntime = 1; // changed from 0 to 1
         numDetectedObjects = 0;
         numTrackedObjects = 0;
         numLandmarks = 0;
@@ -70,10 +75,22 @@ public class StatisticalFolder {
         numLandmarks++;
     }
 
+    /*
+     * the following functions are (just to keep it neat):
+     * 1) updateStatistics
+     * 2) updateLandmarks
+     * 3) updateCamLastFrame
+     * 4) updatelastLiDarWorkerTrackerFrame
+     * 5) updatePoses
+     * 6) updateOutputCamError
+     * are more needed? add under this comment
+     */
+
     public void updateStatistics() {
-        try (FileReader reader = new FileReader(outputFilePath)) {
+        checkIfOutputFileExists();
+        try (FileReader reader = new FileReader(Paths.get(outputFilePath).toString())) {
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            JsonObject output = JsonParser.parseReader(reader).getAsJsonObject();
+            JsonObject output = reader.ready() ? JsonParser.parseReader(reader).getAsJsonObject() : new JsonObject();
             JsonObject statistics = output.has("statistics") ? output.getAsJsonObject("statistics") : new JsonObject();
             statistics.addProperty("systemRuntime", systemRuntime);
             statistics.addProperty("numDetectedObjects", numDetectedObjects);
@@ -89,10 +106,28 @@ public class StatisticalFolder {
         }
     }
 
+    private void checkIfOutputFileExists() {
+        File file = new File(outputFilePath);
+        if (file.exists()) {
+            return;
+        } else {
+            try {
+                if (file.createNewFile()) {
+                    return;
+                } else {
+                    System.err.println("Failed to create the file.");
+                }
+            } catch (IOException e) {
+                System.err.println("An error occurred while creating the file: " + e.getMessage());
+            }
+        }
+    }
+
     public void updateLandmarks(ArrayList<LandMark> landmarks) {
+        checkIfOutputFileExists();
         try (FileReader reader = new FileReader(outputFilePath)) {
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            JsonObject output = JsonParser.parseReader(reader).getAsJsonObject();
+            JsonObject output = reader.ready() ? JsonParser.parseReader(reader).getAsJsonObject() : new JsonObject();
             JsonObject landMarks = output.has("landMarks") ? output.getAsJsonObject("landMarks") : new JsonObject();
             for (LandMark landmark : landmarks) {
                 JsonObject landmarkJson = new JsonObject();
@@ -112,9 +147,10 @@ public class StatisticalFolder {
     }
 
     public void updateCamLastFrame(int time, Camera cam) {
+        checkIfOutputFileExists();
         try (FileReader reader = new FileReader(outputFilePath)) {
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            JsonObject output = JsonParser.parseReader(reader).getAsJsonObject();
+            JsonObject output = reader.ready() ? JsonParser.parseReader(reader).getAsJsonObject() : new JsonObject();
             JsonObject cameraLastFrame = output.has("lastCamerasFrame") ? output.getAsJsonObject("lastCamerasFrame")
                     : new JsonObject();
             JsonObject lastFrameJson = new JsonObject();
@@ -132,9 +168,10 @@ public class StatisticalFolder {
     }
 
     public void updatelastLiDarWorkerTrackerFrame(int time, LiDarWorkerTracker lidar) {
+        checkIfOutputFileExists();
         try (FileReader reader = new FileReader(outputFilePath)) {
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            JsonObject output = JsonParser.parseReader(reader).getAsJsonObject();
+            JsonObject output = reader.ready() ? JsonParser.parseReader(reader).getAsJsonObject() : new JsonObject();
             JsonObject lidarLastFrame = output.has("lastLiDarWorkerTrackersFrame")
                     ? output.getAsJsonObject("lastLiDarWorkerTrackersFrame")
                     : new JsonObject();
@@ -155,12 +192,34 @@ public class StatisticalFolder {
     }
 
     public void updatePoses(List<Pose> poses) {
+        checkIfOutputFileExists();
+        try (FileReader reader = new FileReader(outputFilePath)) {
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            JsonObject output = reader.ready() ? JsonParser.parseReader(reader).getAsJsonObject() : new JsonObject();
+            JsonObject posesJson = output.has("poses") ? output.getAsJsonObject("poses") : new JsonObject();
+            for (Pose pose : poses) {
+                JsonObject poseJson = new JsonObject();
+                poseJson.addProperty("time", pose.getTime());
+                poseJson.addProperty("x", pose.getX());
+                poseJson.addProperty("y", pose.getY());
+                poseJson.addProperty("yaw", pose.getYaw());
+                posesJson.add("pose" + pose.getTime(), poseJson);
+            }
+            output.add("poses", posesJson);
+            try (FileWriter writer = new FileWriter(outputFilePath)) {
+                gson.toJson(output, writer);
+                System.out.println("Poses were updated in " + outputFilePath);
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to update the poses in the output file because of " + e.getMessage());
+        }
     }
 
     public void updateOutputCamError(int time, Camera cam) {
+        checkIfOutputFileExists();
         try (FileReader reader = new FileReader(outputFilePath)) {
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            JsonObject output = JsonParser.parseReader(reader).getAsJsonObject();
+            JsonObject output = reader.ready() ? JsonParser.parseReader(reader).getAsJsonObject() : new JsonObject();
             String errorMsg = cam.getErrorMsg();
             output.addProperty("error", errorMsg);
             output.addProperty("faultySensor", "Camera" + cam.getID());
