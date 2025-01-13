@@ -10,8 +10,8 @@ import java.util.List;
  * tracked objects.
  */
 public class LiDarDataBase {
-    private static String filePath;
-//    private List<StampedCloudPoints> stampedCloudPoints;
+    private static String filePath = "lidar_data.json";
+    // private List<StampedCloudPoints> stampedCloudPoints;
 
     /**
      * Returns the singleton instance of LiDarDataBase.
@@ -20,20 +20,19 @@ public class LiDarDataBase {
      * @return The singleton instance of LiDarDataBase.
      */
     private static class SingletonHolder {
-        private static LiDarDataBase instance = new LiDarDataBase(filePath);
+        private static LiDarDataBase instance = new LiDarDataBase();
     }
+
     public static LiDarDataBase getInstance(String filePath) {
         return SingletonHolder.instance;
     }
 
-    private LiDarDataBase(String filePath) {
-        this.filePath = filePath;
+    private LiDarDataBase() {
         loadCloudPoints();
     }
 
     private void loadCloudPoints() {
         // load cloud points from file
     }
-
 
 }
