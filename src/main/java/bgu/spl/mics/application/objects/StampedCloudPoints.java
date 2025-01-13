@@ -1,6 +1,5 @@
 package bgu.spl.mics.application.objects;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 
 /**

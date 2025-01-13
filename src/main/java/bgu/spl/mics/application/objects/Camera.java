@@ -1,9 +1,6 @@
 package bgu.spl.mics.application.objects;
 
-import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.IOException;
-import java.lang.ProcessBuilder.Redirect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

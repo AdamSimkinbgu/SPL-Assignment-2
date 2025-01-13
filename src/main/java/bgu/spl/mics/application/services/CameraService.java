@@ -1,25 +1,14 @@
 package bgu.spl.mics.application.services;
 
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-
-import bgu.spl.mics.Callback;
 import bgu.spl.mics.MicroService;
 import bgu.spl.mics.application.Messages.CrashedBroadcast;
 import bgu.spl.mics.application.Messages.DetectObjectsEvent;
 import bgu.spl.mics.application.Messages.TerminatedBroadcast;
 import bgu.spl.mics.application.Messages.TickBroadcast;
 import bgu.spl.mics.application.objects.Camera;
-import bgu.spl.mics.application.objects.DetectedObject;
 import bgu.spl.mics.application.objects.STATUS;
 import bgu.spl.mics.application.objects.StampedDetectedObjects;
-import bgu.spl.mics.application.objects.StatisticalFolder;
 
 /**
  * CameraService is responsible for processing data from the camera and
