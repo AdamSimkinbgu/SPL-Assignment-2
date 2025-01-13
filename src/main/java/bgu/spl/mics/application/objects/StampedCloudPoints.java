@@ -13,7 +13,7 @@ public class StampedCloudPoints {
     private int time; // the timestamp of the cloud points
     private ArrayList<CloudPoint> points; // list of cloud points
 
-    public StampedCloudPoints(String id, int time, ArrayList<CloudPoint> points) {
+    public StampedCloudPoints(int time, String id, ArrayList<CloudPoint> points) {
         this.id = id;
         this.time = time;
         this.points = points;

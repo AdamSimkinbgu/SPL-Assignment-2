@@ -11,7 +11,7 @@ import java.util.List;
  */
 public class LiDarDataBase {
     private static String filePath;
-//    private List<StampedCloudPoints> stampedCloudPoints;
+    private List<StampedCloudPoints> cloudPoints;
 
     /**
      * Returns the singleton instance of LiDarDataBase.
@@ -28,12 +28,17 @@ public class LiDarDataBase {
 
     private LiDarDataBase(String filePath) {
         this.filePath = filePath;
-        loadCloudPoints();
+        this.cloudPoints = loadCloudPoints(filePath);
     }
 
-    private void loadCloudPoints() {
+    private List<StampedCloudPoints> loadCloudPoints(String filePath) {
         // load cloud points from file
+        return cloudPoints; // implement here adam
     }
 
+    public List<StampedCloudPoints> getCloudPoints() {
+        // getter for cloud points
+        return cloudPoints;
+    }
 
 }
