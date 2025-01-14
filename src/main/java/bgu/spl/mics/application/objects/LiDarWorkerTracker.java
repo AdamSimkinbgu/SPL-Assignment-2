@@ -1,6 +1,7 @@
 package bgu.spl.mics.application.objects;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * LiDarWorkerTracker is responsible for managing a LiDAR worker.
@@ -13,12 +14,14 @@ public class LiDarWorkerTracker {
     private int frequency; // the frequency of the LiDAR worker
     private STATUS status;
     private ArrayList<TrackedObject> lastTrackedObjects; // list of the last tracked objects
+    private LiDarDataBase lidarDataBase; // the LiDAR database
 
-    public LiDarWorkerTracker(int id, int frequency) {
+    public LiDarWorkerTracker(int id, int frequency, String FilePath) {
         this.id = id;
         this.frequency = frequency;
         this.status = STATUS.UP;
         this.lastTrackedObjects = new ArrayList<TrackedObject>();
+        this.lidarDataBase = LiDarDataBase.getInstance(FilePath);
     }
 
     public int getID() {
@@ -33,16 +36,34 @@ public class LiDarWorkerTracker {
         // calculate tracked objects from detected objects
         ArrayList<TrackedObject> afterCalculateObjects = new ArrayList<>();
         ArrayList<DetectedObject> detectedObject = detectedObjects.getDetectedObjects();
-        int detectedtime = detectedObjects.getTime();
-        for (DetectedObject detected : detectedObject) {
-            String id = detected.getId();
-            String description = detected.getDescription();
-            TrackedObject trackedObject = new TrackedObject(id, detectedtime, description);
-            afterCalculateObjects.add(trackedObject);
-            // TODO not finished.
-
+        int detectedTime = detectedObjects.getTime();
+        checkForError(detectedTime);
+        if (getStatus() == STATUS.UP) {
+            for (DetectedObject detected : detectedObject) {
+                // detectobject event has detectorname(which camera detected), at what time it was send and
+                // object of stampeddetectedobjects
+                // stampeddetectedobjects has time and arraylist of detectedobjects
+                // detected object has id, description.
+                String id = detected.getId();
+                String description = detected.getDescription();
+                TrackedObject trackedObject = new TrackedObject(id, detectedTime, description);
+                afterCalculateObjects.add(trackedObject);
+            }
         }
         return afterCalculateObjects;
+    }
+
+    private void checkForError(int detectedTime) {
+        // check if the there was an error in detections of objects
+        // getcloudpoints from base returns list of stampedcloudpoints
+        List<StampedCloudPoints> stampedCloudPoints = lidarDataBase.getStampedCloudPoints();
+        for (StampedCloudPoints stampedCloudPoint : stampedCloudPoints) {
+            if (stampedCloudPoint.getTime() == detectedTime) {
+                if (stampedCloudPoint.getID().equals("ERROR")){
+                    setStatus(STATUS.DOWN);
+                }
+            }
+        }
 
     }
 
