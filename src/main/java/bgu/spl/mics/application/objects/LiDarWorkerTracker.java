@@ -79,8 +79,11 @@ public class LiDarWorkerTracker {
         return !lastTrackedObjects.isEmpty();
     }
 
-    public TrackedObject getLastTrackedObject() {
-        return lastTrackedObjects.get(lastTrackedObjects.size() - 1);
+    public ArrayList<TrackedObject> getLastTrackedObject() {
+        return lastTrackedObjects;
     }
 
+    public void updateLastTrackedObjects(ArrayList<TrackedObject> trackedObjects) {
+        lastTrackedObjects = trackedObjects;
+    }
 }
