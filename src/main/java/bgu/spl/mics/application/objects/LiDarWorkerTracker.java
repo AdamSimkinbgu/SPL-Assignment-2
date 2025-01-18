@@ -40,7 +40,8 @@ public class LiDarWorkerTracker {
         checkForError(detectedTime);
         if (getStatus() == STATUS.UP) {
             for (DetectedObject detected : detectedObject) {
-                // detectobject event has detectorname(which camera detected), at what time it was send and
+                // detectobject event has detectorname(which camera detected), at what time it
+                // was send and
                 // object of stampeddetectedobjects
                 // stampeddetectedobjects has time and arraylist of detectedobjects
                 // detected object has id, description.
@@ -59,7 +60,7 @@ public class LiDarWorkerTracker {
         List<StampedCloudPoints> stampedCloudPoints = lidarDataBase.getStampedCloudPoints();
         for (StampedCloudPoints stampedCloudPoint : stampedCloudPoints) {
             if (stampedCloudPoint.getTime() == detectedTime) {
-                if (stampedCloudPoint.getID().equals("ERROR")){
+                if (stampedCloudPoint.getID().equals("ERROR")) {
                     setStatus(STATUS.DOWN);
                 }
             }

@@ -24,7 +24,7 @@ public class TimeService extends MicroService {
      */
     public TimeService(int TickTime, int Duration) {
         super("TimeService");
-        this.TicksinSeconds = TickTime; //how many ticks there are in 1 second
+        this.TicksinSeconds = TickTime; // how many ticks there are in 1 second
         this.TicksLifeSpan = Duration; // how many ticks the service will broadcast
         this.currentTick = 0;
         this.sleepTime = 1000 / TicksinSeconds;
@@ -32,23 +32,24 @@ public class TimeService extends MicroService {
 
     /**
      * Initializes the TimeService.
-     * Starts broadcasting TickBroadcast messages and terminates after the specified duration.
+     * Starts broadcasting TickBroadcast messages and terminates after the specified
+     * duration.
      */
     @Override
     protected void initialize() {
         System.out.println(getName() + " started");
-        // do {
-        //     sendBroadcast(new TickBroadcast(currentTick));
-        //     try {
-        //         Thread.sleep(sleepTime);
-        //     } catch (InterruptedException e) {
-        //         System.out.println("TimeService was interrupted at tick " + currentTick);
-        //         break;
-        //     }
-        //     currentTick++;
-        // } while (currentTick < TicksLifeSpan);
-        // sendBroadcast(new TerminatedBroadcast(getName()));
-        // System.out.println(getName() + " terminated");
-        // terminate();
+        do {
+            sendBroadcast(new TickBroadcast(currentTick));
+            try {
+                Thread.sleep(sleepTime);
+            } catch (InterruptedException e) {
+                System.out.println("TimeService was interrupted at tick " + currentTick);
+                break;
+            }
+            currentTick++;
+        } while (currentTick < TicksLifeSpan);
+        sendBroadcast(new TerminatedBroadcast(getName()));
+        System.out.println(getName() + " terminated");
+        terminate();
     }
 }

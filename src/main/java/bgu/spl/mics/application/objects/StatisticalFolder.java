@@ -185,6 +185,7 @@ public class StatisticalFolder {
                 System.out.println(
                         "Last Frame of LiDarWorkerTracker " + lidar.getID() + " was updated in " + outputFilePath);
             }
+            numTrackedObjects += lidar.getLastTrackedObject().size();
         } catch (Exception e) {
             System.err.println("Failed to update the LiDarWorker's output file because of " + e.getMessage());
         }
