@@ -3,7 +3,7 @@ package bgu.spl.mics.application.Messages;
 import bgu.spl.mics.Event;
 import bgu.spl.mics.application.objects.StampedDetectedObjects;
 
-public class DetectObjectsEvent implements Event<StampedDetectedObjects> {
+public class DetectObjectsEvent implements Event<Boolean> {
    private String detectorName;
    private int sentTime;
    private StampedDetectedObjects stampedDetectedObjects;
