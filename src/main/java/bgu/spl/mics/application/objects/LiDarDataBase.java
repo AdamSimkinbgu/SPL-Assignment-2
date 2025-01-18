@@ -3,6 +3,7 @@ package bgu.spl.mics.application.objects;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,8 +16,8 @@ import com.google.gson.reflect.TypeToken;
  * tracked objects.
  */
 public class LiDarDataBase {
-    private static String filePath;
-    private List<StampedCloudPoints> cloudPoints;
+    private static String filePath = Paths.get("example/lidar_data.json").toString();
+    private List<StampedCloudPoints> stampedCloudPoints;
 
     /**
      * Returns the singleton instance of LiDarDataBase.
@@ -25,16 +26,15 @@ public class LiDarDataBase {
      * @return The singleton instance of LiDarDataBase.
      */
     private static class SingletonHolder {
-        private static LiDarDataBase instance = new LiDarDataBase(filePath);
+        private static LiDarDataBase instance = new LiDarDataBase();
     }
 
     public static LiDarDataBase getInstance(String filePath) {
-        LiDarDataBase.filePath = filePath;
         return SingletonHolder.instance;
     }
 
-    private LiDarDataBase(String filePath) {
-        this.cloudPoints = loadCloudPoints(filePath);
+    private LiDarDataBase() {
+        this.stampedCloudPoints = loadCloudPoints(filePath);
     }
 
     private List<StampedCloudPoints> loadCloudPoints(String filePath) {
@@ -60,9 +60,9 @@ public class LiDarDataBase {
         return true;
     }
 
-    public List<StampedCloudPoints> getCloudPoints() {
+    public List<StampedCloudPoints> getStampedCloudPoints() {
         // getter for cloud points
-        return cloudPoints;
+        return stampedCloudPoints;
     }
 
 }

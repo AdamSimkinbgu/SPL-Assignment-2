@@ -1,13 +1,8 @@
 package bgu.spl.mics.application.services;
 
 import bgu.spl.mics.MicroService;
-import bgu.spl.mics.application.Messages.CrashedBroadcast;
-import bgu.spl.mics.application.Messages.DetectObjectsEvent;
-import bgu.spl.mics.application.Messages.TerminatedBroadcast;
-import bgu.spl.mics.application.Messages.TickBroadcast;
-import bgu.spl.mics.application.objects.LiDarWorkerTracker;
-import bgu.spl.mics.application.objects.STATUS;
-import bgu.spl.mics.application.objects.TrackedObject;
+import bgu.spl.mics.application.Messages.*;
+import bgu.spl.mics.application.objects.*;
 
 import java.util.ArrayList;
 
@@ -21,17 +16,17 @@ import java.util.ArrayList;
  * observations.
  */
 public class LiDarService extends MicroService {
-    private LiDarWorkerTracker LiDarWorkerTracker;
+    private LiDarWorkerTracker lidarWorkerTracker;
 
     /**
      * Constructor for LiDarService.
      *
-     * @param LiDarWorkerTracker A LiDAR Tracker worker object that this service
+     * @param lidarWorkerTracker A LiDAR Tracker worker object that this service
      *                           will use to process data.
      */
-    public LiDarService(LiDarWorkerTracker LiDarWorkerTracker) {
+    public LiDarService(LiDarWorkerTracker lidarWorkerTracker) {
         super("LiDarService");
-        this.LiDarWorkerTracker = LiDarWorkerTracker;
+        this.lidarWorkerTracker = lidarWorkerTracker;
         // maybe more added later
     }
 
@@ -53,7 +48,7 @@ public class LiDarService extends MicroService {
         System.out.println("LiDarService started");
         subscribeBroadcast(TickBroadcast.class, (TickBroadcast tick) -> {
             int currTick = tick.getTick();
-            int dueTick = currTick + LiDarWorkerTracker.getFrequency();
+            int dueTick = currTick + lidarWorkerTracker.getFrequency();
             System.out.println("LiDarService " + getName() + " got tick " + currTick);
 
         });
@@ -68,13 +63,27 @@ public class LiDarService extends MicroService {
 
         subscribeEvent(DetectObjectsEvent.class, event -> { // here we send TrackedObjectEvents
             int currTick = event.getSentTime();
-            int dueTick = currTick + LiDarWorkerTracker.getFrequency();
+            int dueTick = currTick + lidarWorkerTracker.getFrequency();
             System.out.println("LiDarService " + getName() + " got tick " + currTick);
-            if (LiDarWorkerTracker.getStatus() == STATUS.UP) {
+            if (lidarWorkerTracker.getStatus() == STATUS.UP) {
                 // process data
                 // send TrackedObjectsEvent
-                // ArrayList<TrackedObject> trackedObjects =
-                // LiDarWorkerTracker.processData(event.getStampedDetectedObjects());
+                // ArrayList<TrackedObject> trackedObjects = each object has id, time, description.
+                StampedDetectedObjects detectedObjects = event.getStampedDetectedObjects();
+                ArrayList<TrackedObject> trackedObjects = lidarWorkerTracker.calculateTrackedObjects(detectedObjects);
+                if (lidarWorkerTracker.getStatus().equals("DOWN")){
+                    System.out.println("LiDarService " + getName() + " got an error");
+                    sendBroadcast(new CrashedBroadcast("LidarWorker " + lidarWorkerTracker.getID() + " got an error", "in LiDarService " + getName()));
+                    terminate();
+                    StatisticalFolder.getInstance().updatelastLiDarWorkerTrackerFrame(currTick, lidarWorkerTracker);
+                }
+                else {
+                    sendEvent(new TrackedObjectsEvent(trackedObjects, currTick));
+                }
+                // detectobject event has detectorname(which camera detected), at what time it was send and
+                // object of stampeddetectedobjects
+                // stampeddetectedobjects has time and arraylist of detectedobjects
+                // detected object has id, description.
             }
         });
     }

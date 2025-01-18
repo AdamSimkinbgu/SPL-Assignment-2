@@ -72,11 +72,9 @@ public class CameraService extends MicroService {
                         else {
                             event = eventQ.poll();
                             sendEvent(event);
-                            // TODO FIX LATER
-                            // System.out.println("CameraService " + getName() + " sent DetectObjectsEvent
-                            // at tick " + dueTime);
-                            // StatisticalFolder.getInstance().addDetectedObjects(event.getDetectorName(),
-                            // event.getDetectedObjects());
+                            System.out.println("CameraService " + getName() + " sent DetectObjectsEvent at tick " + dueTime);
+                            StatisticalFolder.getInstance().updateCamLastFrame(currTick, camera);
+                            // update statistical folder
                         }
                     }
                 }
