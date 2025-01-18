@@ -29,6 +29,10 @@ public class GPSIMU {
         return poses;
     }
 
+    public Pose getPoseAtTick(int tick) {
+        return poses.get(tick);
+    }
+
     public void addPose(Pose pose) {
         poses.add(pose);
     }
