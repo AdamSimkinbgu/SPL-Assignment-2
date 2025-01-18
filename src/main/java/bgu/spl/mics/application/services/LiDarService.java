@@ -5,6 +5,8 @@ import bgu.spl.mics.application.Messages.*;
 import bgu.spl.mics.application.objects.*;
 
 import java.util.ArrayList;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.PriorityBlockingQueue;
 
 /**
  * LiDarService is responsible for processing data from the LiDAR sensor and
@@ -17,7 +19,7 @@ import java.util.ArrayList;
  */
 public class LiDarService extends MicroService {
     private LiDarWorkerTracker lidarWorkerTracker;
-
+    private PriorityBlockingQueue<>
     /**
      * Constructor for LiDarService.
      *
@@ -71,14 +73,21 @@ public class LiDarService extends MicroService {
                 // ArrayList<TrackedObject> trackedObjects = each object has id, time, description.
                 StampedDetectedObjects detectedObjects = event.getStampedDetectedObjects();
                 ArrayList<TrackedObject> trackedObjects = lidarWorkerTracker.calculateTrackedObjects(detectedObjects);
-                if (lidarWorkerTracker.getStatus().equals("DOWN")){
+                if (lidarWorkerTracker.getStatus().equals(STATUS.DOWN)){
                     System.out.println("LiDarService " + getName() + " got an error");
                     sendBroadcast(new CrashedBroadcast("LidarWorker " + lidarWorkerTracker.getID() + " got an error", "in LiDarService " + getName()));
                     terminate();
                     StatisticalFolder.getInstance().updatelastLiDarWorkerTrackerFrame(currTick, lidarWorkerTracker);
                 }
                 else {
-                    sendEvent(new TrackedObjectsEvent(trackedObjects, currTick));
+                    TrackedObjectsEvent trackedObjectsEvent = new TrackedObjectsEvent(trackedObjects, currTick, dueTick);
+                    if (dueTick <= currTick) {
+                        lidarWorkerTracker.updateLastTrackedObjects(trackedObjects);
+                        sendEvent(trackedObjectsEvent);
+                        System.out.println("LiDarService " + getName() + " sent TrackedObjectsEvent at tick " + dueTick);
+                        StatisticalFolder.getInstance().updatelastLiDarWorkerTrackerFrame(currTick, lidarWorkerTracker);
+                    }
+                    else {
                 }
                 // detectobject event has detectorname(which camera detected), at what time it was send and
                 // object of stampeddetectedobjects
