@@ -105,5 +105,7 @@ public class CameraService extends MicroService {
             terminate();
         });
 
+
+
     }
 }
