@@ -44,7 +44,7 @@ public class PoseService extends MicroService {
                 if (pose != null) {
                     System.out.println(getName() + " sending an event about the pose at tick " + currTick);
                     sendEvent(new PoseEvent(getName(), pose));
-                    return;  // not sure if this is needed
+                    return; // not sure if this is needed
                 }
                 if (gpsimu.getStatus() == STATUS.DOWN) {
                     System.err.println(getName() + " is down");
@@ -63,7 +63,8 @@ public class PoseService extends MicroService {
         subscribeBroadcast(CrashedBroadcast.class, (CrashedBroadcast crashed) -> {
             if (crashed.getCrasher().equals(getName())) {
                 System.err.println(getName() + " crashed with error: " + crashed.getErrorMsg());
-                sendBroadcast(new CrashedBroadcast("GPSIMU crashed", getName())); // im not sure what error message can be in this case
+                sendBroadcast(new CrashedBroadcast("GPSIMU crashed", getName())); // im not sure what error message can
+                                                                                  // be in this case
                 terminate();
                 StatisticalFolder.getInstance().updatePoses(gpsimu.getPoses());
             }
@@ -72,7 +73,8 @@ public class PoseService extends MicroService {
         subscribeBroadcast(TerminatedBroadcast.class, (TerminatedBroadcast terminated) -> {
             if (terminated.getTerminatorName().equals(getName())) {
                 System.err.println(getName() + " terminated");
-                sendBroadcast(new TerminatedBroadcast(getName()));                terminate();
+                sendBroadcast(new TerminatedBroadcast(getName()));
+                terminate();
                 StatisticalFolder.getInstance().updatePoses(gpsimu.getPoses());
             }
         });

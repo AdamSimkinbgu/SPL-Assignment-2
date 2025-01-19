@@ -44,4 +44,8 @@ public class LandMark {
     public void clearPoints() {
         points.clear();
     }
+
+    public void setCoordinates(List<CloudPoint> mergedPoints) {
+        points = mergedPoints;
+    }
 }
