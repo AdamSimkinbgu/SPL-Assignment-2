@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,7 +27,7 @@ public class StatisticalFolder {
     private int numDetectedObjects;
     private int numTrackedObjects;
     private int numLandmarks;
-    private String outputFilePath = "output_file_TESTING.json";
+    private String outputFilePath = initializeOutputFile();;
 
     public static StatisticalFolder getInstance() {
         return StatisticalFolderHolder.instance;
@@ -72,6 +74,26 @@ public class StatisticalFolder {
 
     public void increaseNumLandmarks() {
         numLandmarks++;
+    }
+
+    private String initializeOutputFile() {
+        Path path = Paths.get("output_file.json");
+        outputFilePath = path.toAbsolutePath().toString(); // Ensures absolute path for clarity
+
+        if (!Files.exists(path)) {
+            try {
+                Files.createFile(path);
+                System.out.println("Created new file: " + outputFilePath);
+            } catch (IOException e) {
+                System.err.println("Failed to create file: " + outputFilePath);
+                e.printStackTrace();
+                // Handle the exception as per your application's requirements
+            }
+        } else {
+            System.out.println("File already exists: " + outputFilePath);
+            return "";
+        }
+        return outputFilePath;
     }
 
     /*
@@ -140,6 +162,7 @@ public class StatisticalFolder {
                 gson.toJson(output, writer);
                 System.out.println("Landmarks were updated in " + outputFilePath);
             }
+            numLandmarks = landMarks.size();
         } catch (Exception e) {
             System.err.println("Failed to update the LandMarks in the output file because of " + e.getMessage());
         }
@@ -161,6 +184,8 @@ public class StatisticalFolder {
                 gson.toJson(output, writer);
                 System.out.println("Last Frame of Camera " + cam.getID() + " was updated in " + outputFilePath);
             }
+            numDetectedObjects += cam.getDetectedObjects().stream()
+                    .filter(detectedObjects -> detectedObjects.getTime() == time).count();
         } catch (Exception e) {
             System.err.println("Failed to update the camera's output file because of " + e.getMessage());
         }
@@ -185,7 +210,8 @@ public class StatisticalFolder {
                 System.out.println(
                         "Last Frame of LiDarWorkerTracker " + lidar.getID() + " was updated in " + outputFilePath);
             }
-            numTrackedObjects += lidar.getLastTrackedObject().size();
+            numTrackedObjects += lidar.getLastTrackedObject().stream()
+                    .filter(trackedObject -> trackedObject.getTime() == time).count();
         } catch (Exception e) {
             System.err.println("Failed to update the LiDarWorker's output file because of " + e.getMessage());
         }
@@ -223,10 +249,6 @@ public class StatisticalFolder {
             String errorMsg = cam.getErrorMsg();
             output.addProperty("error", errorMsg);
             output.addProperty("faultySensor", "Camera" + cam.getID());
-            JsonObject camData = new JsonObject();
-            camData.addProperty("time", time);
-            camData.add("detectedObjects", gson.toJsonTree(cam.getDetectedObjects()));
-            output.add("faultySensorData", camData);
             try (FileWriter writer = new FileWriter(outputFilePath)) {
                 gson.toJson(output, writer);
                 System.out.println("Error of Camera " + cam.getID() + " was updated in " + outputFilePath);
