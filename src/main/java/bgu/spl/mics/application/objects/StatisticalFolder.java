@@ -77,7 +77,7 @@ public class StatisticalFolder {
     }
 
     private String initializeOutputFile() {
-        Path path = Paths.get("output_file.json");
+        Path path = Paths.get("output_file_new_test.json");
         outputFilePath = path.toAbsolutePath().toString(); // Ensures absolute path for clarity
 
         if (!Files.exists(path)) {

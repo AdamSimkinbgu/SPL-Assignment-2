@@ -52,8 +52,7 @@ public class MessageBusImpl implements MessageBus {
 			if (!broadcastQueue.contains(m)) {
 				broadcastQueue.add(m);
 				System.out.println("MicroService " + m.getName() + " subscribed to Broadcast " + type);
-			}
-			else
+			} else
 				System.out.println("Error: MicroService " + m.getName() + " already subscribed to Broadcast " + type);
 		}
 	}
@@ -63,8 +62,8 @@ public class MessageBusImpl implements MessageBus {
 		Future<T> future = (Future<T>) futurehashmap.remove(e);
 		if (future != null) {
 			future.resolve(result);
-		}
-		else System.out.println("Error: Future not found");
+		} else
+			System.out.println("Error: Future not found");
 	}
 
 	@Override
@@ -81,8 +80,12 @@ public class MessageBusImpl implements MessageBus {
 						}
 					}
 				}
-			} else { System.out.println("Error: Broadcast " + b.getClass() + " Queue is empty");}
-		} else { System.out.println("Error: Broadcast " + b.getClass() + " not found");}
+			} else {
+				System.out.println("Error: Broadcast " + b.getClass() + " Queue is empty");
+			}
+		} else {
+			System.out.println("Error: Broadcast " + b.getClass() + " not found");
+		}
 	}
 
 	@Override
@@ -96,8 +99,14 @@ public class MessageBusImpl implements MessageBus {
 						chosen = eventQueue.poll();
 					} while (!(chosen != null && microhashmap.containsKey(chosen)));
 					eventQueue.add(chosen);
-				} else { System.out.println("Error: Event " + e.getClass() + " has no subscribers"); return null; }
-			} else { System.out.println("Error: Event " + e.getClass() + " has no queue"); return null; }
+				} else {
+					System.out.println("Error: Event " + e.getClass() + " has no subscribers");
+					return null;
+				}
+			} else {
+				System.out.println("Error: Event " + e.getClass() + " has no queue");
+				return null;
+			}
 		}
 		Future<T> future = new Future<>();
 		futurehashmap.put(e, future);
@@ -119,8 +128,7 @@ public class MessageBusImpl implements MessageBus {
 				synchronized (eventQueue) {
 					eventQueue.remove(m);
 				}
-			}
-			else if (message instanceof Broadcast) {
+			} else if (message instanceof Broadcast) {
 				ConcurrentLinkedQueue<MicroService> broadcastQueue = broadcasthashmap.get(message.getClass());
 				synchronized (broadcastQueue) {
 					broadcastQueue.remove(m);

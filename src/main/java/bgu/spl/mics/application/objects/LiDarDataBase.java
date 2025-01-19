@@ -16,7 +16,7 @@ import com.google.gson.reflect.TypeToken;
  * tracked objects.
  */
 public class LiDarDataBase {
-    private static String filePath = Paths.get("example/lidar_data.json").toString();
+    private static String filePath = null;
     private List<StampedCloudPoints> stampedCloudPoints;
 
     /**
@@ -30,11 +30,18 @@ public class LiDarDataBase {
     }
 
     public static LiDarDataBase getInstance(String filePath) {
+        if (LiDarDataBase.filePath == null) {
+            LiDarDataBase.filePath = filePath;
+        }
         return SingletonHolder.instance;
     }
 
     private LiDarDataBase() {
         this.stampedCloudPoints = loadCloudPoints(filePath);
+    }
+
+    public void setFilePath(String fp) {
+        filePath = fp;
     }
 
     private List<StampedCloudPoints> loadCloudPoints(String filePath) {

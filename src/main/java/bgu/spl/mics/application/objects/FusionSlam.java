@@ -21,6 +21,7 @@ public class FusionSlam {
     private Map<Integer, Pose> poses;
     private int tick;
     private AtomicInteger activeSensors;
+    private AtomicInteger activeCameras;
 
     // correct implementation of the Singleton pattern according to the practical
     // class
@@ -29,6 +30,7 @@ public class FusionSlam {
         this.poses = new HashMap<Integer, Pose>();
         this.tick = 0;
         this.activeSensors = new AtomicInteger(0);
+        this.activeCameras = new AtomicInteger(0);
     }
 
     // Singleton instance holder
@@ -66,6 +68,22 @@ public class FusionSlam {
 
     public void decreaseSensor() {
         activeSensors.decrementAndGet();
+    }
+
+    public void setNumberOfActiveSensors(int numActiveSensors) {
+        activeSensors.set(numActiveSensors);
+    }
+
+    public void increaseCameras() {
+        activeCameras.incrementAndGet();
+    }
+
+    public void decreaseCameras() {
+        activeCameras.decrementAndGet();
+    }
+
+    public void setNumberOfActiveCameras(int numActiveCameras) {
+        activeCameras.set(numActiveCameras);
     }
 
     public void setTick(int tick) {
@@ -148,5 +166,10 @@ public class FusionSlam {
         }
 
         return transformedPoints;
+    }
+
+    public void setActiveCameras(int numActiveCameras) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'setActiveCameras'");
     }
 }

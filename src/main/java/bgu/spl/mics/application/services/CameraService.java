@@ -28,7 +28,7 @@ public class CameraService extends MicroService {
      * @param camera The Camera object that this service will use to detect objects.
      */
     public CameraService(Camera camera) {
-        super("CameraService");
+        super("CameraService" + camera.getID());
 
     }
 
@@ -73,7 +73,8 @@ public class CameraService extends MicroService {
                         else {
                             event = eventQ.poll();
                             sendEvent(event);
-                            System.out.println("CameraService " + getName() + " sent DetectObjectsEvent at tick " + dueTime);
+                            System.out.println(
+                                    "CameraService " + getName() + " sent DetectObjectsEvent at tick " + dueTime);
                             StatisticalFolder.getInstance().updateCamLastFrame(currTick, camera);
                             // update statistical folder
                         }
@@ -94,8 +95,6 @@ public class CameraService extends MicroService {
             camera.setStatus(STATUS.DOWN);
             terminate();
         });
-
-
 
     }
 }

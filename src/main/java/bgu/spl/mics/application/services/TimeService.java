@@ -39,6 +39,7 @@ public class TimeService extends MicroService {
         System.out.println(getName() + " started");
         do {
             sendBroadcast(new TickBroadcast(currentTick));
+            System.out.println(getName() + " sent tick " + currentTick);
             try {
                 Thread.sleep(sleepTime);
             } catch (InterruptedException e) {
