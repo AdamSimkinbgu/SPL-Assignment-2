@@ -3,6 +3,7 @@ package bgu.spl.mics.application.services;
 import bgu.spl.mics.MicroService;
 import bgu.spl.mics.application.Messages.TerminatedBroadcast;
 import bgu.spl.mics.application.Messages.TickBroadcast;
+import bgu.spl.mics.application.objects.StatisticalFolder;
 
 /**
  * TimeService acts as the global timer for the system, broadcasting
@@ -51,5 +52,6 @@ public class TimeService extends MicroService {
         sendBroadcast(new TerminatedBroadcast(getName()));
         System.out.println(getName() + " terminated");
         terminate();
+        StatisticalFolder.getInstance().updateStatistics();
     }
 }

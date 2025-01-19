@@ -66,22 +66,46 @@ public class MessageBusImpl implements MessageBus {
 			System.out.println("Error: Future not found");
 	}
 
+	// @Override
+	// public void sendBroadcast(Broadcast b) {
+	// ConcurrentLinkedQueue<MicroService> broadcastQueue =
+	// broadcasthashmap.get(b.getClass());
+	// if (broadcastQueue != null) {
+	// if (!(broadcastQueue.isEmpty())) {
+	// synchronized (broadcastQueue) {
+	// for (MicroService subscribedforb : broadcastQueue) {
+	// if (microhashmap.get(subscribedforb) == null) {
+	// System.out.println("Error: MicroService " + subscribedforb.getName() + " not
+	// found");
+	// } else {
+	// microhashmap.get(subscribedforb).add(b);
+	// }
+	// }
+	// }
+	// } else {
+	// System.out.println("Error: Broadcast " + b.getClass() + " Queue is empty");
+	// }
+	// } else {
+	// System.out.println("Error: Broadcast " + b.getClass() + " not found");
+	// }
+	// }
+
 	@Override
 	public void sendBroadcast(Broadcast b) {
 		ConcurrentLinkedQueue<MicroService> broadcastQueue = broadcasthashmap.get(b.getClass());
 		if (broadcastQueue != null) {
-			if (!(broadcastQueue.isEmpty())) {
-				synchronized (broadcastQueue) {
-					for (MicroService subscribedforb : broadcastQueue) {
-						if (microhashmap.get(subscribedforb) == null) {
-							System.out.println("Error: MicroService " + subscribedforb.getName() + " not found");
-						} else {
-							microhashmap.get(subscribedforb).add(b);
+			synchronized (broadcastQueue) {
+				for (MicroService subscribed : broadcastQueue) {
+					ConcurrentLinkedQueue<Message> messageQueue = microhashmap.get(subscribed);
+					if (messageQueue != null) {
+						synchronized (messageQueue) {
+							messageQueue.add(b);
+							messageQueue.notify(); // Notify waiting threads
 						}
+					} else {
+						System.out.println("Error: MicroService " + subscribed.getName() + " not found");
 					}
 				}
-			} else {
-				System.out.println("Error: Broadcast " + b.getClass() + " Queue is empty");
 			}
 		} else {
 			System.out.println("Error: Broadcast " + b.getClass() + " not found");
@@ -92,21 +116,29 @@ public class MessageBusImpl implements MessageBus {
 	public <T> Future<T> sendEvent(Event<T> e) {
 		MicroService chosen = null;
 		ConcurrentLinkedQueue<MicroService> eventQueue = eventshashmap.get(e.getClass());
-		synchronized (eventQueue) {
-			if (eventQueue != null) {
+		if (eventQueue != null) {
+			synchronized (eventQueue) {
 				if (!eventQueue.isEmpty()) {
-					do {
+					while (!eventQueue.isEmpty()) {
 						chosen = eventQueue.poll();
-					} while (!(chosen != null && microhashmap.containsKey(chosen)));
-					eventQueue.add(chosen);
+						if (chosen != null && microhashmap.containsKey(chosen)) {
+							eventQueue.add(chosen);
+							eventQueue.notifyAll();
+							break;
+						}
+					}
+					if (chosen == null) {
+						System.out.println("Error: Event " + e.getClass() + " has no valid subscribers");
+						return null;
+					}
 				} else {
 					System.out.println("Error: Event " + e.getClass() + " has no subscribers");
 					return null;
 				}
-			} else {
-				System.out.println("Error: Event " + e.getClass() + " has no queue");
-				return null;
 			}
+		} else {
+			System.out.println("Error: Event " + e.getClass() + " has no queue");
+			return null;
 		}
 		Future<T> future = new Future<>();
 		futurehashmap.put(e, future);
@@ -142,14 +174,20 @@ public class MessageBusImpl implements MessageBus {
 
 	@Override
 	public Message awaitMessage(MicroService m) throws InterruptedException {
-		while (microhashmap.get(m).isEmpty()) {
-			try {
-				Thread.currentThread().wait();
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			}
+		ConcurrentLinkedQueue<Message> messageQueue = microhashmap.get(m);
+		if (messageQueue == null) {
+			throw new IllegalStateException("MicroService not registered: " + m.getName());
 		}
-		return microhashmap.get(m).poll();
 
+		synchronized (messageQueue) {
+			while (messageQueue.isEmpty()) {
+				messageQueue.wait(); // Wait for new messages
+			}
+			return messageQueue.poll();
+		}
+	}
+
+	public boolean checkRegistrations(MicroService microService) {
+		return microhashmap.containsKey(microService);
 	}
 }

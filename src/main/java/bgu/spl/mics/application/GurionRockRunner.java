@@ -2,12 +2,14 @@ package bgu.spl.mics.application;
 
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
@@ -54,7 +56,7 @@ public class GurionRockRunner {
         String configPath = "/Users/adamsimkin/Documents/GitHub/SPL-Assignment-2/example input/configuration_file.json";
         File configFile = new File(configPath);
         String configDirectory = configFile.getParent(); // Extract the directory containing the config file
-
+        createDebugJson();
         try (FileReader reader = new FileReader(configPath)) {
             // Parse the configurationfile into a JsonObject
             Gson gson = new Gson();
@@ -218,6 +220,33 @@ public class GurionRockRunner {
             // Handle exceptions for file reading and thread interruptions
             e.printStackTrace();
             Thread.currentThread().interrupt();
+        }
+    }
+
+    public static void createDebugJson() {
+        File file = new File(Paths.get("YourFriendlyNeighborhoodDebuggerJason.json").toAbsolutePath().toString());
+        if (file.exists()) {
+            return;
+        } else {
+            try {
+                if (file.createNewFile()) {
+                    return;
+                } else {
+                    System.err.println("Failed to create the file.");
+                }
+            } catch (IOException e) {
+                System.err.println("An error occurred while creating the file: " + e.getMessage());
+            }
+        }
+    }
+
+    public static void writeDebugJson(JsonArray jasonToolBelt) {
+        try (FileWriter writer = new FileWriter(
+                Paths.get("YourFriendlyNeighborhoodDebuggerJason.json").toAbsolutePath().toString())) {
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            gson.toJson(jasonToolBelt, writer);
+        } catch (IOException e) {
+            System.err.println("An error occurred while writing to the file: " + e.getMessage());
         }
     }
 }

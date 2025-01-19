@@ -50,6 +50,10 @@ public class LiDarService extends MicroService {
     protected void initialize() {
         System.out.println("LiDarService started");
         subscribeBroadcast(TickBroadcast.class, (TickBroadcast tick) -> {
+            if (!registrationsPlease()) {
+                System.err.println("CameraService " + getName() + " is not registered");
+                return;
+            }
             int currTick = tick.getTick();
             System.out.println(getName() + " got tick " + currTick);
             if (lidarWorkerTracker.getStatus() == STATUS.UP) {

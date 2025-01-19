@@ -25,7 +25,7 @@ public class Camera {
         this.id = id;
         this.frequency = frequency;
         this.status = STATUS.UP;
-        this.detectedObjects = Collections.unmodifiableList(detectedObjects);
+        this.detectedObjects = detectedObjects;
         this.timeLimit = timeLimit;
     }
 

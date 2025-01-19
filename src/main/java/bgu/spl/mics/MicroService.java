@@ -166,14 +166,12 @@ public abstract class MicroService implements Runnable {
     @Override
     public final void run() {
         messageBus.register(this);
+        System.out.println(Thread.currentThread().getName() + ": (MicroService: " + name + ") " + " registered");
         initialize();
         while (!terminated) {
             try {
-                System.out.println("################################################################");
                 System.out.println(
                         Thread.currentThread().getName() + ": (MicroService: " + name + ") " + "waiting for message");
-                System.out.println("################################################################");
-
                 Message message = messageBus.awaitMessage(this);
                 Callback<Message> callback = (Callback<Message>) callbacks.get(message.getClass());
                 if (callback != null) {
@@ -188,8 +186,13 @@ public abstract class MicroService implements Runnable {
             }
         }
         messageBus.unregister(this);
+        System.out.println(Thread.currentThread().getName() + ": (MicroService: " + name + ") " + " unregistered");
         System.out.println(Thread.currentThread().getName() + ": (MicroService: " + name + ") " + " terminated");
         Thread.currentThread().interrupt();
+    }
+
+    public boolean registrationsPlease() {
+        return messageBus.checkRegistrations(this);
     }
 
 }

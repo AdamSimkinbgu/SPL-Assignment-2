@@ -36,6 +36,10 @@ public class PoseService extends MicroService {
     @Override
     protected void initialize() {
         subscribeBroadcast(TickBroadcast.class, (TickBroadcast tick) -> {
+            if (!registrationsPlease()) {
+                System.err.println("CameraService " + getName() + " is not registered");
+                return;
+            }
             int currTick = tick.getTick();
             gpsimu.setCurrentTick(currTick);
             System.out.println(getName() + " got tickBroadcast at tick " + currTick);

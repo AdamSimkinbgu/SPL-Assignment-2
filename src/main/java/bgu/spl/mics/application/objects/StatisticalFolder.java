@@ -91,9 +91,8 @@ public class StatisticalFolder {
             }
         } else {
             System.out.println("File already exists: " + outputFilePath);
-            return "";
         }
-        return outputFilePath;
+        return path.toAbsolutePath().toString();
     }
 
     /*
@@ -109,7 +108,7 @@ public class StatisticalFolder {
 
     public void updateStatistics() {
         checkIfOutputFileExists();
-        try (FileReader reader = new FileReader(Paths.get(outputFilePath).toString())) {
+        try (FileReader reader = new FileReader(outputFilePath)) {
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             JsonObject output = reader.ready() ? JsonParser.parseReader(reader).getAsJsonObject() : new JsonObject();
             JsonObject statistics = output.has("statistics") ? output.getAsJsonObject("statistics") : new JsonObject();
