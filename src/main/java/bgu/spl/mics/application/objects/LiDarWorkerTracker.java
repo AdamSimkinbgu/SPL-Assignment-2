@@ -13,7 +13,7 @@ public class LiDarWorkerTracker {
     private int id; // the ID of the LiDAR worker
     private int frequency; // the frequency of the LiDAR worker
     private STATUS status;
-    private ArrayList<TrackedObject> lastTrackedObjects; // list of the last tracked objects
+    private List<TrackedObject> lastTrackedObjects; // list of the last tracked objects
     private LiDarDataBase lidarDataBase; // the LiDAR database
 
     public LiDarWorkerTracker(int id, int frequency, String FilePath) {
@@ -79,11 +79,11 @@ public class LiDarWorkerTracker {
         return !lastTrackedObjects.isEmpty();
     }
 
-    public ArrayList<TrackedObject> getLastTrackedObject() {
+    public List<TrackedObject> getLastTrackedObject() {
         return lastTrackedObjects;
     }
 
-    public void updateLastTrackedObjects(ArrayList<TrackedObject> trackedObjects) {
+    public void updateLastTrackedObjects(List<TrackedObject> trackedObjects) {
         lastTrackedObjects = trackedObjects;
     }
 }
