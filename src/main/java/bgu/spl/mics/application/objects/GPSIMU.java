@@ -1,6 +1,8 @@
 package bgu.spl.mics.application.objects;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Represents the robot's GPS and IMU system.
@@ -8,16 +10,16 @@ import java.util.ArrayList;
  */
 public class GPSIMU {
     private int currentTick; // the current time tick
-    private ArrayList<Pose> poses; // represents a list of time-stamped poses
+    private ConcurrentHashMap<Integer, Pose> poses; // represents a list of time-stamped poses
     STATUS status; // the status of the GPSIMU system
 
     public GPSIMU() {
         this.currentTick = 0;
         this.status = STATUS.UP;
-        this.poses = new ArrayList<Pose>();
+        this.poses = new ConcurrentHashMap<Integer, Pose>();
     }
 
-    public GPSIMU(ArrayList<Pose> poses) {
+    public GPSIMU(ConcurrentHashMap<Integer, Pose> poses) {
         this.currentTick = 0;
         this.status = STATUS.UP;
         this.poses = poses;
@@ -31,7 +33,7 @@ public class GPSIMU {
         this.currentTick = currentTick;
     }
 
-    public ArrayList<Pose> getPoses() {
+    public ConcurrentHashMap<Integer, Pose> getPoses() {
         return poses;
     }
 
@@ -40,7 +42,7 @@ public class GPSIMU {
     }
 
     public void addPose(Pose pose) {
-        poses.add(pose);
+        poses.put(pose.getTime(), pose);
     }
 
     public STATUS getStatus() {

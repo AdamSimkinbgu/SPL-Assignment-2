@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -18,7 +21,7 @@ import java.util.stream.IntStream;
  */
 public class FusionSlam {
     private ArrayList<LandMark> landmarks;
-    private Map<Integer, Pose> poses;
+    private ConcurrentHashMap<Integer, Pose> poses;
     private int tick;
     private AtomicInteger activeSensors;
     private AtomicInteger activeCameras;
@@ -27,7 +30,7 @@ public class FusionSlam {
     // class
     private FusionSlam() {
         this.landmarks = new ArrayList<LandMark>();
-        this.poses = new HashMap<Integer, Pose>();
+        this.poses = new ConcurrentHashMap<Integer, Pose>();
         this.tick = 0;
         this.activeSensors = new AtomicInteger(0);
         this.activeCameras = new AtomicInteger(0);
@@ -54,8 +57,8 @@ public class FusionSlam {
         return poses;
     }
 
-    public void addPose(Pose pose) {
-        poses.put(pose.getTime(), pose);
+    public synchronized void addPose(Pose pose) {
+        poses.putIfAbsent(pose.getTime(), pose);
     }
 
     public int getTick() {
@@ -94,20 +97,37 @@ public class FusionSlam {
         return activeSensors.get();
     }
 
-    public void analyzeObjects(List<TrackedObject> trackedObjects) {
+    public Pose getPoseAtTime(int time) {
+        Pose pose = poses.get(time);
+        return pose;
+    }
+
+    public synchronized void analyzeObjects(List<TrackedObject> trackedObjects) {
         for (TrackedObject trackedObj : trackedObjects) {
             Pose currPose = poses.get(trackedObj.getTime());
             String tObjID = trackedObj.getID();
             if (currPose == null) {
-                System.out.println("No pose found for time " + trackedObj.getTime() + " for object " + tObjID);
+                System.out.println(
+                        "FusionSlam: No pose found for time " + trackedObj.getTime() + " for object " + tObjID);
                 continue;
             }
-            List<CloudPoint> points = convertToGlobalCoordinates(trackedObj.getPoints(), currPose);
-            LandMark landmarkToUpdate = findLankmark(tObjID);
+            List<List<Double>> points = convertToGlobalCoordinates(trackedObj.getPoints(), currPose);
+            System.out.println(
+                    "FusionSlam: Converted " + points.size() + " local cloud points to global coordinates for object "
+                            + tObjID + " at tick " + trackedObj.getTime());
+            LandMark landmarkToUpdate = findLankmark(tObjID); // findLandmark(tObjID);
             if (landmarkToUpdate != null) {
+                System.out.println("FusionSlam: Updating existing landmark " + tObjID);
                 updateLandmarkCoordinates(landmarkToUpdate, points);
             } else {
-                LandMark newLandmark = new LandMark(tObjID, trackedObj.getDescription(), points);
+                System.out.println("FusionSlam: Creating new landmark " + tObjID);
+                ConcurrentLinkedQueue<CloudPoint> cloudPoints = new ConcurrentLinkedQueue<>();
+                for (List<Double> pt : points) {
+                    Double x = pt.get(0);
+                    Double y = pt.get(1);
+                    cloudPoints.add(new CloudPoint(x, y));
+                }
+                LandMark newLandmark = new LandMark(tObjID, trackedObj.getDescription(), cloudPoints);
                 landmarks.add(newLandmark);
                 StatisticalFolder.getInstance().increaseNumLandmarks();
                 StatisticalFolder.getInstance().updateLandmarks(landmarks);
@@ -115,61 +135,98 @@ public class FusionSlam {
         }
     }
 
-    private void updateLandmarkCoordinates(LandMark landmark, List<CloudPoint> points) {
-        List<CloudPoint> currentPts = landmark.getPoints();
+    private synchronized void updateLandmarkCoordinates(LandMark landmark, List<List<Double>> points) {
+        List<List<Double>> currentPts = landmark.getPoints();
         if (currentPts.size() == points.size()) {
-            List<CloudPoint> updatedPts = IntStream.range(0, currentPts.size())
-                    .mapToObj(i -> new CloudPoint((currentPts.get(i).getX() + points.get(i).getX()) / 2.0,
-                            (currentPts.get(i).getY() + points.get(i).getY()) / 2.0))
-                    .collect(Collectors.toList());
-            landmark.setCoordinates(updatedPts);
+            List<List<Double>> averagedPts = new ArrayList<>();
+            for (int i = 0; i < currentPts.size(); i++) {
+                List<Double> currentPt = currentPts.get(i);
+                List<Double> incomingPt = points.get(i);
+                double avgX = (currentPt.get(0) + incomingPt.get(0)) / 2.0;
+                double avgY = (currentPt.get(1) + incomingPt.get(1)) / 2.0;
+                List<Double> avgPt = new ArrayList<>();
+                avgPt.add(avgX);
+                avgPt.add(avgY);
+                averagedPts.add(avgPt);
+            }
+            System.out.println(
+                    "FusionSlam: Averaged " + points.size() + " cloud points for landmark " + landmark.getID());
         } else {
-            // if the sizes differe, handle integration of the new points
+            System.out.println(
+                    "FusionSlam: Integrating " + points.size() + " cloud points for landmark " + landmark.getID());
             integrateLandmarkCoordinates(landmark, points);
         }
     }
 
-    private void integrateLandmarkCoordinates(LandMark landmark, List<CloudPoint> additionalPts) {
-        List<CloudPoint> currentPts = landmark.getPoints();
+    private synchronized void integrateLandmarkCoordinates(LandMark landmark, List<List<Double>> additionalPts) {
+        List<List<Double>> currentPts = landmark.getPoints();
         int minSize = Math.min(currentPts.size(), additionalPts.size());
 
-        List<CloudPoint> integratedPts = IntStream.range(0, minSize)
-                .mapToObj(i -> {
-                    CloudPoint basePt = currentPts.get(i);
-                    CloudPoint incomingPt = additionalPts.get(i);
-                    return new CloudPoint(
-                            basePt.getX() + (incomingPt.getX() - basePt.getX()) / 2.0,
-                            basePt.getY() + (incomingPt.getY() - basePt.getY()) / 2.0);
-                })
-                .collect(Collectors.toList());
+        List<List<Double>> integratedPts = IntStream.range(0, minSize).mapToObj(i -> {
+            List<Double> currentPt = currentPts.get(i);
+            List<Double> incomingPt = additionalPts.get(i);
+            double avgX = (currentPt.get(0) + incomingPt.get(0)) / 2.0;
+            double avgY = (currentPt.get(1) + incomingPt.get(1)) / 2.0;
+            List<Double> avgPt = new ArrayList<>();
+            avgPt.add(avgX);
+            avgPt.add(avgY);
+            return avgPt;
+        }).collect(Collectors.toList());
 
         if (additionalPts.size() > currentPts.size()) {
             integratedPts.addAll(additionalPts.subList(minSize, additionalPts.size()));
         } else if (currentPts.size() > additionalPts.size()) {
             integratedPts.addAll(currentPts.subList(minSize, currentPts.size()));
         }
-
-        landmark.setCoordinates(integratedPts);
+        ConcurrentLinkedQueue<CloudPoint> ConvertedIntegratedPoints = new ConcurrentLinkedQueue<>();
+        for (List<Double> pt : integratedPts) {
+            ConvertedIntegratedPoints.add(new CloudPoint(pt.get(0), pt.get(1));
+        }
+        landmark.setCoordinates(ConvertedIntegratedPoints);
+        System.out.println("FusionSlam: Integrated cloud points for landmark " + landmark.getID());
     }
 
-    public List<CloudPoint> convertToGlobalCoordinates(List<CloudPoint> localPts, Pose robotPose) {
-        List<CloudPoint> transformedPoints = new ArrayList<>();
+    public synchronized List<List<Double>> convertToGlobalCoordinates(ArrayList<CloudPoint> localPts,
+            Pose robotPose) {
+        List<List<Double>> transformedPoints = new ArrayList<>();
 
         double angleRad = Math.toRadians(robotPose.getYaw());
         double cosine = Math.cos(angleRad);
         double sine = Math.sin(angleRad);
 
-        for (CloudPoint localPt : localPts) {
-            double xGlobal = (localPt.getX() * cosine) - (localPt.getY() * sine) + robotPose.getX();
-            double yGlobal = (localPt.getX() * sine) + (localPt.getY() * cosine) + robotPose.getY();
-            transformedPoints.add(new CloudPoint(xGlobal, yGlobal));
+        for (CloudPoint pt : localPts) {
+            double x = pt.getX();
+            double y = pt.getY();
+            double globalX = cosine * x - sine * y + robotPose.getX();
+            double globalY = sine * x + cosine * y + robotPose.getY();
+            List<Double> globalPt = new ArrayList<>();
+            globalPt.add(globalX);
+            globalPt.add(globalY);
+            transformedPoints.add(globalPt);
         }
+
+        System.out.println("FusionSlam: Converted " + localPts.size() + " local cloud points to global coordinates\n"
+                + "FusionSlam: Robot pose: " + robotPose.getX() + ", " + robotPose.getY() + ", " + robotPose.getYaw()
+                + "\n" + "FusionSlam: Transformation matrix: [" + cosine + ", " + -sine + ", " + robotPose.getX()
+                + "], [" + sine + ", " + cosine + ", " + robotPose.getY() + "]\n" + "FusionSlam: Local points: "
+                + localPts.size() + "\n" + "FusionSlam: Global points: " + transformedPoints.size());
 
         return transformedPoints;
     }
 
     public void setActiveCameras(int numActiveCameras) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setActiveCameras'");
+        activeCameras.set(numActiveCameras);
+    }
+
+    public void clearForDebug() {
+        landmarks.clear();
+        poses.clear();
+        tick = 0;
+        activeSensors.set(0);
+        activeCameras.set(0);
+    }
+
+    public int getNumberOfActiveCameras() {
+        return activeCameras.get();
     }
 }

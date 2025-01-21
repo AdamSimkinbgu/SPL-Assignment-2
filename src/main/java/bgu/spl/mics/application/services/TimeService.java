@@ -37,20 +37,22 @@ public class TimeService extends MicroService {
      */
     @Override
     protected void initialize() {
-        System.out.println(getName() + " started");
+        System.out.println("[INITIALIZING] - " + getName() + " started broadcasting ticks every " + sleepTime + "ms, "
+                + TicksLifeSpan + " ticks total, starting tick " + currentTick);
         do {
+            System.out.println("[TICKBROADCAST - SENT] - " + getName() + " sent tick " + currentTick);
             sendBroadcast(new TickBroadcast(currentTick));
-            System.out.println(getName() + " sent tick " + currentTick);
             try {
                 Thread.sleep(sleepTime);
             } catch (InterruptedException e) {
-                System.out.println("TimeService was interrupted at tick " + currentTick);
+                System.out.println("[INTERRUPTED] - " + "TimeService was interrupted at tick " + currentTick
+                        + " with error: " + e.getMessage() + ", terminating");
                 break;
             }
             currentTick++;
-        } while (currentTick < TicksLifeSpan);
+        } while (currentTick <= TicksLifeSpan);
         sendBroadcast(new TerminatedBroadcast(getName()));
-        System.out.println(getName() + " terminated");
+        System.out.println("[TERMINATED] - " + getName() + " terminated");
         terminate();
         StatisticalFolder.getInstance().updateStatistics();
     }

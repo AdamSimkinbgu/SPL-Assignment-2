@@ -38,6 +38,7 @@ public class LiDarDataBase {
 
     private LiDarDataBase() {
         this.stampedCloudPoints = loadCloudPoints(filePath);
+        System.out.println("CloudPoints: " + stampedCloudPoints);
     }
 
     public void setFilePath(String fp) {
@@ -50,8 +51,10 @@ public class LiDarDataBase {
         }
         try (FileReader reader = new FileReader(filePath)) {
             Gson gson = new Gson();
-            return gson.fromJson(reader, new TypeToken<List<StampedCloudPoints>>() {
-            }.getType());
+            java.lang.reflect.Type type = new TypeToken<List<StampedCloudPoints>>() {
+            }.getType();
+            List<StampedCloudPoints> stampedCloudPoints = gson.fromJson(reader, type);
+            return stampedCloudPoints;
         } catch (IOException e) {
             System.err.println("Failed to load LiDAR data from file: " + filePath + ". Error: " + e.getMessage());
             return new ArrayList<>(); // return empty list without cloud points after load problem

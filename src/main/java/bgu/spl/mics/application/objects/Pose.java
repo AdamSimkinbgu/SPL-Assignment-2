@@ -1,5 +1,7 @@
 package bgu.spl.mics.application.objects;
 
+import java.util.Objects;
+
 /**
  * Represents the robot's pose (position and orientation) in the environment.
  * Includes x, y coordinates and the yaw angle relative to a global coordinate
@@ -33,4 +35,23 @@ public class Pose {
     public int getTime() {
         return time;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null || getClass() != obj.getClass())
+            return false;
+        Pose pose = (Pose) obj;
+        return Float.compare(pose.x, x) == 0 &&
+                Float.compare(pose.y, y) == 0 &&
+                Float.compare(pose.yaw, yaw) == 0 &&
+                time == pose.time;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(x, y, yaw, time);
+    }
+
 }

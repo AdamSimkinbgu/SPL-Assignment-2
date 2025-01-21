@@ -21,6 +21,13 @@ public class TrackedObject {
         this.points = new ArrayList<>();
     }
 
+    public TrackedObject(String id, int time, String description, ArrayList<CloudPoint> points) {
+        this.id = id;
+        this.time = time;
+        this.description = description;
+        this.points = points;
+    }
+
     public String getID() {
         return id;
     }

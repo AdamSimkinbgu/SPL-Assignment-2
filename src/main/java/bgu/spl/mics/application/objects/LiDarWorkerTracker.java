@@ -61,7 +61,7 @@ public class LiDarWorkerTracker {
         for (StampedCloudPoints stampedCloudPoint : stampedCloudPoints) {
             if (stampedCloudPoint.getTime() == detectedTime) {
                 if (stampedCloudPoint.getID().equals("ERROR")) {
-                    setStatus(STATUS.DOWN);
+                    setStatus(STATUS.ERROR);
                 }
             }
         }

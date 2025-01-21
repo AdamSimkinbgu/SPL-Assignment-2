@@ -2,6 +2,9 @@ package bgu.spl.mics;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.function.BooleanSupplier;
+
+import bgu.spl.mics.application.services.CameraService;
 
 /**
  * The {@link MessageBusImpl class is the implementation of the MessageBus
@@ -39,7 +42,8 @@ public class MessageBusImpl implements MessageBus {
 		synchronized (eventQueue) {
 			if (!eventQueue.contains(m)) {
 				eventQueue.add(m);
-				System.out.println("MicroService " + m.getName() + " subscribed to Event " + type);
+				System.out.println("[EVENT SUBSCRIBED] - " + Thread.currentThread().getName() + ": (MicroService: "
+						+ m.getName() + ") " + "subscribing to event of type " + type);
 			}
 		}
 	}
@@ -51,19 +55,22 @@ public class MessageBusImpl implements MessageBus {
 		synchronized (broadcastQueue) {
 			if (!broadcastQueue.contains(m)) {
 				broadcastQueue.add(m);
-				System.out.println("MicroService " + m.getName() + " subscribed to Broadcast " + type);
+				System.out.println("[BROADCAST SUBSCRIBED] - " + Thread.currentThread().getName() + ": (MicroService: "
+						+ m.getName() + ") " + "subscribing to broadcast of type " + type);
 			} else
-				System.out.println("Error: MicroService " + m.getName() + " already subscribed to Broadcast " + type);
+				System.out.println("[SUBSCRIBE BROADCAST ERROR] - " + "MicroService " + m.getName()
+						+ " already subscribed to Broadcast " + type);
 		}
 	}
 
 	@Override
 	public <T> void complete(Event<T> e, T result) {
-		Future<T> future = (Future<T>) futurehashmap.remove(e);
-		if (future != null) {
+		synchronized (e) { // this is shit
+			Future<T> future = (Future<T>) futurehashmap.remove(e);
 			future.resolve(result);
-		} else
-			System.out.println("Error: Future not found");
+		}
+		System.out.println("[FUTURE COMPLETED] - " + "Event " + e.getClass() + " completed with result " + result);
+
 	}
 
 	// @Override
@@ -100,15 +107,19 @@ public class MessageBusImpl implements MessageBus {
 					if (messageQueue != null) {
 						synchronized (messageQueue) {
 							messageQueue.add(b);
-							messageQueue.notify(); // Notify waiting threads
+							messageQueue.notifyAll(); // Notify the microservice thread
+							System.out.println("[SENDBROADCAST] - " + "Broadcast " + b.getClass() + " sent to "
+									+ subscribed.getName());
 						}
 					} else {
-						System.out.println("Error: MicroService " + subscribed.getName() + " not found");
+						System.err.println("[SENDBROADCAST ERROR] - " + "MicroService " + subscribed.getName()
+								+ " not found in microhashmap");
 					}
 				}
 			}
 		} else {
-			System.out.println("Error: Broadcast " + b.getClass() + " not found");
+			System.out
+					.println("[SENDBROADCAST ERROR] - " + "Broadcast " + b.getClass() + " not found in broadcasthashmap");
 		}
 	}
 
@@ -116,78 +127,151 @@ public class MessageBusImpl implements MessageBus {
 	public <T> Future<T> sendEvent(Event<T> e) {
 		MicroService chosen = null;
 		ConcurrentLinkedQueue<MicroService> eventQueue = eventshashmap.get(e.getClass());
-		if (eventQueue != null) {
-			synchronized (eventQueue) {
-				if (!eventQueue.isEmpty()) {
-					while (!eventQueue.isEmpty()) {
-						chosen = eventQueue.poll();
-						if (chosen != null && microhashmap.containsKey(chosen)) {
-							eventQueue.add(chosen);
-							eventQueue.notifyAll();
-							break;
-						}
-					}
-					if (chosen == null) {
-						System.out.println("Error: Event " + e.getClass() + " has no valid subscribers");
-						return null;
-					}
-				} else {
-					System.out.println("Error: Event " + e.getClass() + " has no subscribers");
-					return null;
+
+		synchronized (eventQueue) {
+			if (eventQueue == null || eventQueue.isEmpty()) {
+				System.out.println("[SENDEVENT ERROR] - " + "Event " + e.getClass() + " not found in eventshashmap");
+				return null;
+			}
+
+			// if (eventQueue.isEmpty()) {
+			// System.out.println("[SENDEVENT ERROR] - " + "Event " + e.getClass() + " Queue
+			// is empty");
+			// return null;
+			// }
+
+			// Round-robin selection of microservice
+			while (!eventQueue.isEmpty()) {
+				chosen = eventQueue.poll();
+				if (chosen != null && microhashmap.containsKey(chosen)) {
+					eventQueue.add(chosen); // Re-add to the end for round-robin
+					break;
 				}
 			}
-		} else {
-			System.out.println("Error: Event " + e.getClass() + " has no queue");
-			return null;
+
+			if (chosen == null) {
+				System.out.println("[SENDEVENT ERROR] - " + "No available MicroService for Event " + e.getClass());
+				return null;
+			}
 		}
+
+		// Create and store the Future
 		Future<T> future = new Future<>();
 		futurehashmap.put(e, future);
-		microhashmap.get(chosen).add(e);
-		return future;
+
+		// Retrieve the message queue of the chosen microservice
+		ConcurrentLinkedQueue<Message> messageQueue = microhashmap.get(chosen);
+		synchronized (messageQueue) {
+			// if (messageQueue != null) {
+			messageQueue.add(e);
+			messageQueue.notify(); // Notify the microservice that a new message has arrived
+			System.out.println("[SENDEVENT] - " + "Event " + e.getClass() + " sent to " + chosen.getName());
+
+			// } else {
+			// System.err.println("[SENDEVENT ERROR] - " + "MicroService " +
+			// chosen.getName() + " not found in microhashmap");
+			// futurehashmap.remove(e); // Clean up the future as the message won't be
+			// processed
+			// return null;
+			// }
+
+		}
+		return future; // Return the Future to allow the sender to wait for the result
 	}
 
 	@Override
 	public void register(MicroService m) {
 		this.microhashmap.putIfAbsent(m, new ConcurrentLinkedQueue<Message>());
-		System.out.println("MicroService " + m.getName() + " registered");
+		System.out.println("[REGISTERED] - " + Thread.currentThread().getName() + ": (MicroService: " + m.getName() + ") "
+				+ " registered");
 	}
+
+	// @Override
+	// public void unregister(MicroService m) {
+	// for (Message message : microhashmap.get(m)) {
+	// if (message instanceof Event) {
+	// ConcurrentLinkedQueue<MicroService> eventQueue =
+	// eventshashmap.get(message.getClass());
+	// synchronized (eventQueue) {
+	// eventQueue.remove(m);
+	// }
+	// } else if (message instanceof Broadcast) {
+	// ConcurrentLinkedQueue<MicroService> broadcastQueue =
+	// broadcasthashmap.get(message.getClass());
+	// synchronized (broadcastQueue) {
+	// broadcastQueue.remove(m);
+	// }
+	// }
+
+	// }
+	// this.microhashmap.remove(m);
+	// System.out.println("MicroService " + m.getName() + " unregistered");
+	// }
 
 	@Override
 	public void unregister(MicroService m) {
-		for (Message message : microhashmap.get(m)) {
-			if (message instanceof Event) {
-				ConcurrentLinkedQueue<MicroService> eventQueue = eventshashmap.get(message.getClass());
-				synchronized (eventQueue) {
-					eventQueue.remove(m);
-				}
-			} else if (message instanceof Broadcast) {
-				ConcurrentLinkedQueue<MicroService> broadcastQueue = broadcasthashmap.get(message.getClass());
-				synchronized (broadcastQueue) {
-					broadcastQueue.remove(m);
+		ConcurrentLinkedQueue<Message> messageQueue = microhashmap.remove(m);
+		if (messageQueue != null) {
+			// Remove from all event subscriptions
+			for (ConcurrentLinkedQueue<MicroService> queue : eventshashmap.values()) {
+				synchronized (queue) {
+					queue.remove(m);
 				}
 			}
-
+			// Remove from all broadcast subscriptions
+			for (ConcurrentLinkedQueue<MicroService> queue : broadcasthashmap.values()) {
+				synchronized (queue) {
+					queue.remove(m);
+				}
+			}
+			// Notify any threads waiting on the message queue
+			synchronized (messageQueue) {
+				messageQueue.notifyAll();
+			}
+			System.out.println("[UNREGISTERED] - " + Thread.currentThread().getName() + ": (MicroService: " + m.getName()
+					+ ") " + " terminated");
+		} else {
+			System.err.println("[UNREGISTER ERROR] - " + "Error: MicroService " + m.getName() + " was not registered");
 		}
-		this.microhashmap.remove(m);
-		System.out.println("MicroService " + m.getName() + " unregistered");
 	}
 
 	@Override
 	public Message awaitMessage(MicroService m) throws InterruptedException {
 		ConcurrentLinkedQueue<Message> messageQueue = microhashmap.get(m);
 		if (messageQueue == null) {
-			throw new IllegalStateException("MicroService not registered: " + m.getName());
+			System.err.println("[AWAITMESSAGE ERROR] - " + "Error: MicroService " + m.getName() + " was not registered");
+			return null; // Return null if the microservice is not registered
 		}
 
 		synchronized (messageQueue) {
 			while (messageQueue.isEmpty()) {
-				messageQueue.wait(); // Wait for new messages
+				try {
+					messageQueue.wait(); // Wait for new messages
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt(); // Restore interrupted status
+					throw e; // Propagate the exception
+				}
 			}
 			return messageQueue.poll();
 		}
 	}
 
-	public boolean checkRegistrations(MicroService microService) {
+	public boolean registrationsForTickBroadcastPlease(MicroService microService) {
 		return microhashmap.containsKey(microService);
+	}
+
+	public void resetForDebug() {
+		microhashmap.clear();
+		eventshashmap.clear();
+		broadcasthashmap.clear();
+		futurehashmap.clear();
+	}
+
+	public ConcurrentLinkedQueue<Message> getQueue(CameraService cameraService) {
+		return microhashmap.get(cameraService);
+	}
+
+	public boolean isRegistered(MicroService service) {
+		return microhashmap.containsKey(service);
 	}
 }

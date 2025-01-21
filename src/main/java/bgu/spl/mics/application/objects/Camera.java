@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -17,11 +19,12 @@ public class Camera {
     private int id;
     private int frequency;
     private STATUS status;
-    private List<StampedDetectedObjects> detectedObjects;
+    private ConcurrentHashMap<Integer, StampedDetectedObjects> detectedObjects;
     private int timeLimit;
     private String errorMsg = null;
 
-    public Camera(int id, int frequency, List<StampedDetectedObjects> detectedObjects, int timeLimit) {
+    public Camera(int id, int frequency, ConcurrentHashMap<Integer, StampedDetectedObjects> detectedObjects,
+            int timeLimit) {
         this.id = id;
         this.frequency = frequency;
         this.status = STATUS.UP;
@@ -33,7 +36,7 @@ public class Camera {
         this.id = id;
         this.frequency = frequency;
         this.status = STATUS.UP;
-        this.detectedObjects = new ArrayList<>();
+        this.detectedObjects = new ConcurrentHashMap<>();
         loadDetectedObjectsFromFilePath(filePath, cameraKey);
     }
 
@@ -49,7 +52,8 @@ public class Camera {
                 for (List<StampedDetectedObjects> stampedDetectedObjects : nestedCameraObjects) {
                     cameraDetectedObjects.addAll(stampedDetectedObjects);
                 }
-                detectedObjects.addAll(detectedObjects);
+                detectedObjects.putAll(cameraDetectedObjects.stream()
+                        .collect(Collectors.toConcurrentMap(StampedDetectedObjects::getTime, d -> d)));
                 timeLimit = cameraDetectedObjects.stream().mapToInt(StampedDetectedObjects::getTime).max().orElse(0);
             } else {
                 timeLimit = 0;
@@ -82,17 +86,18 @@ public class Camera {
         this.status = status;
     }
 
-    public List<StampedDetectedObjects> getDetectedObjects() {
+    public ConcurrentHashMap<Integer, StampedDetectedObjects> getDetectedObjects() {
         return detectedObjects;
     }
 
     public StampedDetectedObjects getDetectedObjects(int time) {
-        StampedDetectedObjects sdo = detectedObjects.stream().filter(d -> d.getTime() == time).findFirst().orElse(null);
+        StampedDetectedObjects sdo = detectedObjects.values().stream().filter(d -> d.getTime() == time).findFirst()
+                .orElse(null);
         if (sdo != null) {
             DetectedObject error = sdo.getDetectedObjects().stream().filter(DetectedObject::isError).findFirst()
                     .orElse(null);
             if (error != null) {
-                setStatus(STATUS.DOWN);
+                setStatus(STATUS.ERROR);
                 errorMsg = error.getDescription();
                 return null;
             }
@@ -106,5 +111,9 @@ public class Camera {
 
     public String getErrorMsg() {
         return errorMsg;
+    }
+
+    public int getTimeLimit() {
+        return timeLimit;
     }
 }

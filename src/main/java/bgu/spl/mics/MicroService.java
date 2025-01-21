@@ -22,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>
  */
 public abstract class MicroService implements Runnable {
+    // def Microservice(Runnable):
 
     private boolean terminated = false;
     private final String name;
@@ -32,6 +33,7 @@ public abstract class MicroService implements Runnable {
      * @param name the micro-service name (used mainly for debugging purposes -
      *             does not have to be unique)
      */
+    // def __init__(self, name: str):
     public MicroService(String name) {
         this.name = name;
         this.messageBus = MessageBusImpl.getInstance();
@@ -61,6 +63,9 @@ public abstract class MicroService implements Runnable {
      *                 queue.
      */
     protected final <T, E extends Event<T>> void subscribeEvent(Class<E> type, Callback<E> callback) {
+        System.out
+                .println("[EVENT SUBSCRIBED] - " + Thread.currentThread().getName() + ": (MicroService: " + name + ") "
+                        + "subscribing to event of type " + type);
         messageBus.subscribeEvent(type, this);
         callbacks.putIfAbsent(type, callback);
     }
@@ -107,6 +112,8 @@ public abstract class MicroService implements Runnable {
      *         null in case no micro-service has subscribed to {@code e.getClass()}.
      */
     protected final <T> Future<T> sendEvent(Event<T> e) {
+        System.out.println("[EVENT SEND] - " + Thread.currentThread().getName() + ": (MicroService: " + name + ") "
+                + "sending event of type " + e.getClass());
         return messageBus.sendEvent(e);
     }
 
@@ -119,6 +126,8 @@ public abstract class MicroService implements Runnable {
      * @param b The broadcast message to send
      */
     protected final void sendBroadcast(Broadcast b) {
+        System.out.println("[BROADCAST SEND] - " + Thread.currentThread().getName() + ": (MicroService: " + name + ") "
+                + "sending broadcast of type " + b.getClass());
         messageBus.sendBroadcast(b);
     }
 
@@ -134,8 +143,12 @@ public abstract class MicroService implements Runnable {
      *               {@code e}.
      */
     protected final <T> void complete(Event<T> e, T result) {
-        messageBus.complete(e, result);
-
+        synchronized (e) {
+            System.out.println(
+                    "[EVENT COMPLETED] - " + Thread.currentThread().getName() + ": (MicroService: " + name + ") "
+                            + "completing event of type " + e.getClass());
+            messageBus.complete(e, result);
+        }
     }
 
     /**
@@ -166,33 +179,26 @@ public abstract class MicroService implements Runnable {
     @Override
     public final void run() {
         messageBus.register(this);
-        System.out.println(Thread.currentThread().getName() + ": (MicroService: " + name + ") " + " registered");
         initialize();
         while (!terminated) {
             try {
                 System.out.println(
-                        Thread.currentThread().getName() + ": (MicroService: " + name + ") " + "waiting for message");
+                        "[MESSAGEWAIT] - " + Thread.currentThread().getName() + ": (MicroService: " + name + ") "
+                                + "waiting for message");
                 Message message = messageBus.awaitMessage(this);
                 Callback<Message> callback = (Callback<Message>) callbacks.get(message.getClass());
                 if (callback != null) {
                     callback.call(message);
                 } else {
-                    System.err.println("No callback for message of type " + message.getClass());
+                    System.err.println("[CALLBACK ERROR] - " + "No callback for message of type " + message.getClass());
                 }
             } catch (InterruptedException e) {
-                System.out.println("MicroService: " + name + " was interrupted");
+                System.out.println("[INTERRUPTED] - " + "MicroService: " + name + " was interrupted");
                 Thread.currentThread().interrupt();
-
             }
         }
         messageBus.unregister(this);
-        System.out.println(Thread.currentThread().getName() + ": (MicroService: " + name + ") " + " unregistered");
-        System.out.println(Thread.currentThread().getName() + ": (MicroService: " + name + ") " + " terminated");
         Thread.currentThread().interrupt();
-    }
-
-    public boolean registrationsPlease() {
-        return messageBus.checkRegistrations(this);
     }
 
 }

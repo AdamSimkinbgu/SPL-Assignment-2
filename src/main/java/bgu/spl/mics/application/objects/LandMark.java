@@ -2,6 +2,7 @@ package bgu.spl.mics.application.objects;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Represents a landmark in the environment map.
@@ -10,16 +11,17 @@ import java.util.List;
 public class LandMark {
     private String id; // the internal of the object
     private String Description; // the description of the landmark
-    private List<CloudPoint> points; // list of coordinates of the object according to the charging station's
-                                     // coordinate system
+    private ConcurrentLinkedQueue<CloudPoint> points; // list of coordinates of the object according to the charging
+                                                      // station's
+    // coordinate system
 
     public LandMark(String id, String description) {
         this.id = id;
         Description = description;
-        points = new ArrayList<CloudPoint>(); // why this cunsturctor made???
+        points = new ConcurrentLinkedQueue<CloudPoint>(); // why this cunsturctor made???
     }
 
-    public LandMark(String id, String description, List<CloudPoint> points) {
+    public LandMark(String id, String description, ConcurrentLinkedQueue<CloudPoint> points) {
         this.id = id;
         Description = description;
         this.points = points;
@@ -33,8 +35,14 @@ public class LandMark {
         return Description;
     }
 
-    public List<CloudPoint> getPoints() {
-        return points;
+    public List<List<Double>> getPoints() {
+        List<List<Double>> pointsList = new ArrayList<>();
+        for (CloudPoint point : points) {
+            List<Double> pointList = new ArrayList<>();
+            pointList.add(point.getX());
+            pointList.add(point.getY());
+        }
+        return pointsList;
     }
 
     public void addPoint(CloudPoint point) {
@@ -45,7 +53,7 @@ public class LandMark {
         points.clear();
     }
 
-    public void setCoordinates(List<CloudPoint> mergedPoints) {
+    public void setCoordinates(ConcurrentLinkedQueue<CloudPoint> mergedPoints) {
         points = mergedPoints;
     }
 }

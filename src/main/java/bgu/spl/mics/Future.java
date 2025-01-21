@@ -12,14 +12,12 @@ import java.util.concurrent.TimeUnit;
  */
 public class Future<T> {
 	private T result;
-	private Boolean isDone;
 
 	/**
 	 * This should be the the only public constructor in this class.
 	 */
 	public Future() {
 		this.result = null;
-		this.isDone = false;
 	}
 
 	/**
@@ -33,12 +31,11 @@ public class Future<T> {
 	 * 
 	 */
 	public synchronized T get() {
-		while (!isDone) {
+		while (!isDone()) {
 			try {
 				wait();
 			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-				return null; // return null if interrupted because the result is not available
+				break;
 			}
 		}
 		return result;
@@ -48,18 +45,17 @@ public class Future<T> {
 	 * Resolves the result of this Future object.
 	 */
 	public synchronized void resolve(T result) {
-		if (!isDone) {
-			this.result = result;
-			isDone = true;
-			notifyAll();
-		}
+		// if (isDone) {
+		this.result = result;
+		notifyAll();
+		// }
 	}
 
 	/**
 	 * @return true if this object has been resolved, false otherwise
 	 */
 	public synchronized boolean isDone() {
-		return isDone;
+		return result != null;
 	}
 
 	/**
@@ -75,13 +71,13 @@ public class Future<T> {
 	 *         elapsed, return null.
 	 */
 	public synchronized T get(long timeout, TimeUnit unit) {
-		if (!isDone) {
+		if (!isDone()) {
 			long millisToWait = unit.toMillis(timeout);
 			long startTime = System.currentTimeMillis();
 			long elapsed = 0;
 			// check if the while loop is needed because we are synchronized and the process
 			// could be done before the while loop checks the condition
-			while (!isDone && elapsed < millisToWait) {
+			while (!isDone() && elapsed < millisToWait) {
 				long remaining = millisToWait - elapsed;
 				try {
 					wait(remaining);
@@ -92,7 +88,7 @@ public class Future<T> {
 				elapsed = System.currentTimeMillis() - startTime;
 			}
 		}
-		return isDone ? result : null;
+		return isDone() ? result : null;
 	}
 
 }

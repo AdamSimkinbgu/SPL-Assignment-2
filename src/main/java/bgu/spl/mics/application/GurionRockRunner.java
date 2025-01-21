@@ -6,7 +6,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -56,7 +58,6 @@ public class GurionRockRunner {
         String configPath = "/Users/adamsimkin/Documents/GitHub/SPL-Assignment-2/example input/configuration_file.json";
         File configFile = new File(configPath);
         String configDirectory = configFile.getParent(); // Extract the directory containing the config file
-        createDebugJson();
         try (FileReader reader = new FileReader(configPath)) {
             // Parse the configurationfile into a JsonObject
             Gson gson = new Gson();
@@ -86,7 +87,7 @@ public class GurionRockRunner {
                     String cameraKey = cameraJson.get("camera_key").getAsString();
                     // Retrieve stamped detected objects for this camera
                     JsonArray stampedObjectsJson = cameraData.getAsJsonArray(cameraKey);
-                    List<StampedDetectedObjects> detectedObjectsList = new ArrayList<>();
+                    ConcurrentHashMap<Integer, StampedDetectedObjects> detectedObjectsList = new ConcurrentHashMap<>();
 
                     for (com.google.gson.JsonElement stampedObjectJson : stampedObjectsJson) {
                         JsonObject stampedObject = stampedObjectJson.getAsJsonObject();
@@ -100,10 +101,10 @@ public class GurionRockRunner {
                             String description = detectedObject.get("description").getAsString();
                             detectedObjects.add(new DetectedObject(idStr, description));
                         }
-                        detectedObjectsList.add(new StampedDetectedObjects(time, detectedObjects));
+                        detectedObjectsList.put(time, new StampedDetectedObjects(time, detectedObjects));
                     }
                     // Compute maxTime as the maximum time in the detectedObjectsList
-                    int maxTime = detectedObjectsList.stream().mapToInt(StampedDetectedObjects::getTime).max()
+                    int maxTime = detectedObjectsList.values().stream().mapToInt(StampedDetectedObjects::getTime).max()
                             .orElse(0); // Default
                                         // to
                                         // 0
@@ -151,13 +152,19 @@ public class GurionRockRunner {
 
             // Parse pose data from the JSON file
             try (FileReader poseReader = new FileReader(poseFilePath)) {
-                java.lang.reflect.Type poseListType = new com.google.gson.reflect.TypeToken<List<Pose>>() {
-                }.getType();
-                ArrayList<Pose> poseList = gson.fromJson(poseReader, poseListType);
-                // Compute maxTime as the maximum time in the poseList
-                int maxTime = poseList.stream().mapToInt(Pose::getTime).max().orElse(0); // Default to 0 if the list is
-                                                                                         // empty
-
+                // java.lang.reflect.Type poseListType = new
+                // com.google.gson.reflect.TypeToken<List<Pose>>() {
+                // }.getType();
+                // HashMap<Integer, Pose> poseList = gson.fromJson(poseReader, poseListType);
+                // // Compute maxTime as the maximum time in the poseList
+                // int maxTime = poseList.stream().mapToInt(Pose::getTime).max().orElse(0); //
+                // Default to 0 if the list is
+                // // empty
+                ConcurrentHashMap<Integer, Pose> poseList = new ConcurrentHashMap<Integer, Pose>();
+                Pose[] poses = gson.fromJson(poseReader, Pose[].class);
+                for (Pose pose : poses) {
+                    poseList.put(pose.getTime(), pose);
+                }
                 // Create GPSIMU and initialize PoseService
                 GPSIMU gpsimu = new GPSIMU(poseList); // GPSIMU gpsimu = new GPSIMU(poseList, maxTime);
                 poseService = new PoseService(gpsimu);
@@ -179,6 +186,15 @@ public class GurionRockRunner {
             // Print debug information
             System.out.println("Active Cameras: " + numActiveCameras);
             System.out.println("Active Sensors: " + numActiveSensors);
+
+            // Debug print all services information
+            // System.out.println("Camera Services: ");
+            // for (CameraService cameraService : cameraServices) {
+            // System.out.println("Camera ID: " + cameraService.getCamera().getID());
+            // System.out.println("Camera Frequency: " +
+            // cameraService.getCamera().getFrequency());
+            // System.out.println("Camera Max Time: " +
+            // cameraService.getCamera().getMaxTime());
 
             // Initialize simulation parameters
             int tickTime = config.get("TickTime").getAsInt();
@@ -220,33 +236,6 @@ public class GurionRockRunner {
             // Handle exceptions for file reading and thread interruptions
             e.printStackTrace();
             Thread.currentThread().interrupt();
-        }
-    }
-
-    public static void createDebugJson() {
-        File file = new File(Paths.get("YourFriendlyNeighborhoodDebuggerJason.json").toAbsolutePath().toString());
-        if (file.exists()) {
-            return;
-        } else {
-            try {
-                if (file.createNewFile()) {
-                    return;
-                } else {
-                    System.err.println("Failed to create the file.");
-                }
-            } catch (IOException e) {
-                System.err.println("An error occurred while creating the file: " + e.getMessage());
-            }
-        }
-    }
-
-    public static void writeDebugJson(JsonArray jasonToolBelt) {
-        try (FileWriter writer = new FileWriter(
-                Paths.get("YourFriendlyNeighborhoodDebuggerJason.json").toAbsolutePath().toString())) {
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            gson.toJson(jasonToolBelt, writer);
-        } catch (IOException e) {
-            System.err.println("An error occurred while writing to the file: " + e.getMessage());
         }
     }
 }

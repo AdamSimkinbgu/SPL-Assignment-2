@@ -37,38 +37,50 @@ public class FusionSlamService extends MicroService {
      */
     @Override
     protected void initialize() {
+        System.out.println("[INITIALIZING] - " + getName() + " started");
         subscribeBroadcast(TerminatedBroadcast.class, (TerminatedBroadcast terminated) -> {
+            System.out.println("[TERMINATED] - " + getName() + " terminated by " + terminated.getTerminatorName());
             if (terminated.getTerminatorName().equals("TimeService")) {
-                System.out
-                        .println("FusionSlamService " + getName() + " terminated by " + terminated.getTerminatorName());
                 sendBroadcast(new TerminatedBroadcast(getName()));
                 terminate();
-            } else if (terminated.getTerminatorName().equals("LiDarService")
-                    || terminated.getTerminatorName().equals("CameraService")) {
+                StatisticalFolder.getInstance().updateLandmarks(fusionSlam.getLandmarks());
+            } else if (terminated.getTerminatorName().contains("LiDarService")) {
                 fusionSlam.decreaseSensor();
-                if (fusionSlam.getNumberOfActiveSensors() == 0) {
-                    System.out.println(
-                            "FusionSlamService " + getName() + " terminated by " + terminated.getTerminatorName());
-                    sendBroadcast(new TerminatedBroadcast(getName()));
-                    terminate();
-                }
+
+            } else if (terminated.getTerminatorName().contains("CameraService")) {
+                fusionSlam.decreaseCameras();
+            }
+            if (fusionSlam.getNumberOfActiveSensors() == 0 || fusionSlam.getNumberOfActiveCameras() == 0) {
+                System.out.println(
+                        "[TERMINATED] - " + getName()
+                                + " terminated because all sensors are inactive, should updating landmarks?");
+                // StatisticalFolder.getInstance().updateLastFrame(fusionSlam.getGlobalMap());
+                // // should update a variable in the statistical folder instead
+                sendBroadcast(new ZeroCamSensBroadcast(fusionSlam.getNumberOfActiveSensors(),
+                        fusionSlam.getNumberOfActiveCameras()));
+                terminate();
             }
         });
 
         subscribeBroadcast(CrashedBroadcast.class, (CrashedBroadcast crashed) -> {
+            System.err.println("[CRASHED] - " + getName() + " crashed with error: " + crashed.getErrorMsg());
             sendBroadcast(new TerminatedBroadcast(getName()));
             terminate();
             StatisticalFolder.getInstance(); // update the statistical folder somehow
         });
 
         subscribeEvent(TrackedObjectsEvent.class, event -> {
+            System.out.println("[TRACKEDOBJECTSEVENT RECEIVED] - " + getName() + " got TrackedObjectsEvent");
             fusionSlam.analyzeObjects(event.getTrackedObjects());
             complete(event, true);
+            // sendBroadcast(new TrackedObjectsBroadcast(event.getTrackedObjects()));
         });
 
         subscribeEvent(PoseEvent.class, event -> {
+            System.out.println("[POSEEVENT RECEIVED] - " + getName() + " got PoseEvent");
             fusionSlam.addPose(event.getPose());
             complete(event, true);
+            // sendBroadcast(new PoseBroadcast(event.getPose()));
         });
     }
 
