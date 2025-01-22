@@ -64,6 +64,5 @@ public class TimeService extends MicroService {
         // sendBroadcast(new TerminatedBroadcast(getName()));
         System.out.println("[TERMINATED] - " + getName() + " terminated");
         terminate();
-        StatisticalFolder.getInstance().createOutput();
     }
 }

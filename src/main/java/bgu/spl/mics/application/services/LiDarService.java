@@ -5,8 +5,10 @@ import bgu.spl.mics.MicroService;
 import bgu.spl.mics.application.Messages.*;
 import bgu.spl.mics.application.objects.*;
 import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * LiDarService is responsible for processing data from the LiDAR sensor and
@@ -148,9 +150,11 @@ public class LiDarService extends MicroService {
                     } else {
                         eventsTODO.add(trackedObjectsEvent);
                         // sort the events by detection time
-                        eventsTODO.stream().sorted(Comparator.comparingInt(TrackedObjectsEvent::getDetectionTime))
-                                .collect(ConcurrentLinkedQueue::new, ConcurrentLinkedQueue::add,
-                                        ConcurrentLinkedQueue::addAll);
+                        List<TrackedObjectsEvent> sortedList = eventsTODO.stream()
+                                .sorted(Comparator.comparingInt(TrackedObjectsEvent::getDetectionTime))
+                                .collect(Collectors.toList());
+                        eventsTODO.clear();
+                        eventsTODO.addAll(sortedList);
                     } // current tick is less than due tick
                 }
                 if (eventsTODO.isEmpty() && lidarWorkerTracker.getStatus().equals(STATUS.DOWN)) {

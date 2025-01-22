@@ -33,12 +33,12 @@ public class StatisticalFolder {
     private AtomicInteger numTrackedObjects;
     private AtomicInteger numLandmarks;
     private String outputFilePath = initializeOutputFile();
-    private JsonObject camerasLastFrame = null;
-    private JsonObject lidarWorkerTrackersLastFrame = null;
+    private JsonObject camerasLastFrame = new JsonObject();
+    private JsonObject lidarWorkerTrackersLastFrame = new JsonObject();
     private ConcurrentHashMap<Integer, JsonObject> poses = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String, JsonObject> landmarks = new ConcurrentHashMap<>();
-    private String errorMsg = null;
-    private String faultySensor = null;
+    private String errorMsg;
+    private String faultySensor;
     private volatile boolean systemIsDone;
     private Gson prettyGson;
     private Gson regularGson;
@@ -61,6 +61,8 @@ public class StatisticalFolder {
         prettyGson = new GsonBuilder().setPrettyPrinting().create();
         regularGson = new Gson();
         systemIsDone = false;
+        errorMsg = null;
+        faultySensor = null;
     }
 
     public int getSystemRuntime() {
@@ -243,24 +245,37 @@ public class StatisticalFolder {
     }
 
     private void addGoodOutput(JsonObject output) {
-        JsonObject statistics = new JsonObject();
-        statistics.addProperty("systemRuntime", systemRuntime.get());
-        statistics.addProperty("numDetectedObjects", numDetectedObjects.get());
-        statistics.addProperty("numTrackedObjects", numTrackedObjects.get());
-        statistics.addProperty("numLandmarks", numLandmarks.get());
-        output.add("statistics", statistics);
-        JsonObject landmarkJsonObject = new JsonObject();
-        for (JsonObject landmark : landmarks.values()) {
-            landmarkJsonObject.add(landmark.get("id").getAsString(), landmark);
+        if (errorMsg == null) {
+            output.addProperty("systemRuntime", systemRuntime.get());
+            output.addProperty("numDetectedObjects", numDetectedObjects.get());
+            output.addProperty("numTrackedObjects", numTrackedObjects.get());
+            output.addProperty("numLandmarks", numLandmarks.get());
+            JsonObject landmarkJsonObject = new JsonObject();
+            for (JsonObject landmark : landmarks.values()) {
+                landmarkJsonObject.add(landmark.get("id").getAsString(), landmark);
+            }
+            output.add("landMarks", landmarkJsonObject);
         }
-        output.add("landmarks", landmarkJsonObject);
     }
 
     private void addErrorOutput(JsonObject output) {
+        JsonObject statistics = new JsonObject();
+        for (String key : output.keySet()) {
+            statistics.add(key, output.get(key));
+        }
+        if (errorMsg != null) {
+            JsonObject landmarkJsonObject = new JsonObject();
+
+            for (JsonObject landmark : landmarks.values()) {
+                landmarkJsonObject.add(landmark.get("id").getAsString(), landmark);
+            }
+            statistics.add("landMarks", landmarkJsonObject);
+        }
+        output.add("statistics", statistics);
         output.addProperty("error", errorMsg);
         output.addProperty("faultySensor", faultySensor);
-        output.addProperty("lastCamerasFrame", camerasLastFrame.toString());
-        output.addProperty("lastLiDarWorkerTrackersFrame", lidarWorkerTrackersLastFrame.toString());
+        output.add("lastCamerasFrame", camerasLastFrame);
+        output.add("lastLiDarWorkerTrackersFrame", lidarWorkerTrackersLastFrame);
         output.addProperty("poses", poses.toString());
     }
 

@@ -23,6 +23,7 @@ import bgu.spl.mics.application.objects.LiDarDataBase;
 import bgu.spl.mics.application.objects.LiDarWorkerTracker;
 import bgu.spl.mics.application.objects.Pose;
 import bgu.spl.mics.application.objects.StampedDetectedObjects;
+import bgu.spl.mics.application.objects.StatisticalFolder;
 import bgu.spl.mics.application.services.CameraService;
 import bgu.spl.mics.application.services.FusionSlamService;
 import bgu.spl.mics.application.services.LiDarService;
@@ -231,6 +232,7 @@ public class GurionRockRunner {
             for (Thread thread : threads) {
                 thread.join();
             }
+            StatisticalFolder.getInstance().createOutput();
 
         } catch (IOException | InterruptedException e) {
             // Handle exceptions for file reading and thread interruptions
