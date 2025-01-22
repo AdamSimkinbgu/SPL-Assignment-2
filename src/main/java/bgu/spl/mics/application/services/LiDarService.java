@@ -4,12 +4,9 @@ import bgu.spl.mics.Future;
 import bgu.spl.mics.MicroService;
 import bgu.spl.mics.application.Messages.*;
 import bgu.spl.mics.application.objects.*;
-
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.PriorityQueue;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * LiDarService is responsible for processing data from the LiDAR sensor and
@@ -53,28 +50,35 @@ public class LiDarService extends MicroService {
     protected void initialize() {
         System.out.println("[INITIALIZING] - " + getName() + " started");
         subscribeBroadcast(TickBroadcast.class, (TickBroadcast tick) -> {
-            System.out.println("[TICKBROADCAST RECEIVED] - " + getName() + " got tick " + tick.getTick());
-            int currTick = tick.getTick();
-            if (lidarWorkerTracker.getStatus() == STATUS.UP) {
-                while (!eventsTODO.isEmpty()) {
-                    if (eventsTODO.peek().getDetectionTime() <= currTick) {
-                        TrackedObjectsEvent trackedObjectsEvent = eventsTODO.poll();
-                        sendEvent(trackedObjectsEvent);
-                        complete(trackedObjectsEvent.getMyEvent(), true);
-                        lidarWorkerTracker.updateLastTrackedObjects(trackedObjectsEvent.getTrackedObjects());
-                        System.out.println(
-                                "[TICKBROADCAST - SUCCESS] - " + getName() + " sent TrackedObjectsEvent at tick "
-                                        + trackedObjectsEvent.getDueTime());
-                    } else {
-                        System.out.println("[TICKBROADCAST - NO WORK] - " + getName() + " has no more events to send");
-                        break;
+            try {
+                System.out.println("[TICKBROADCAST RECEIVED] - " + getName() + " got tick " + tick.getTick());
+                int currTick = tick.getTick();
+                if (lidarWorkerTracker.getStatus() == STATUS.UP) {
+                    if (!eventsTODO.isEmpty()) {
+                        if (eventsTODO.peek().getDetectionTime() <= currTick) {
+                            TrackedObjectsEvent trackedObjectsEvent = eventsTODO.poll();
+                            Future<?> future = sendEvent(trackedObjectsEvent);
+                            if (future.get(currTick + lidarWorkerTracker.getFrequency(), TimeUnit.SECONDS) == null)
+                                crashLiDarBroadcast(currTick);
+
+                            complete(trackedObjectsEvent.getMyEvent(), true);
+
+                            StatisticalFolder.getInstance()
+                                    .addNumTrackedObjects(trackedObjectsEvent.getTrackedObjects().size());
+
+                        }
+                    }
+                    if (eventsTODO.isEmpty() && lidarWorkerTracker.getStatus().equals(STATUS.DOWN)) {
+                        terminateLiDarBroadcast();
+                        StatisticalFolder.getInstance().setSystemIsDone(true);
+                        StatisticalFolder.getInstance().setLastWorkTick(currTick);
                     }
                 }
-                if (eventsTODO.isEmpty() && lidarWorkerTracker.getStatus().equals(STATUS.DOWN)) {
-                    System.out.println("[TICKBROADCAST - TERMINATE] - " + getName() + " has no more events to send");
-                    sendBroadcast(new TerminatedBroadcast(getName()));
-                    terminate();
-                }
+            } catch (Exception e) {
+                System.err.println("[TICKBROADCAST - CRITICAL ERROR] - " + getName() + " got error: " + e.getMessage());
+                e.printStackTrace();
+                crashLiDarBroadcast(tick.getTick());
+
             }
         });
 
@@ -107,7 +111,8 @@ public class LiDarService extends MicroService {
                 StampedDetectedObjects detectedObjects = event.getStampedDetectedObjects();
                 // check if was an error in detections of objects and turning the service to
                 // down if so
-                ArrayList<TrackedObject> trackedObjects = lidarWorkerTracker.calculateTrackedObjects(detectedObjects);
+                ConcurrentLinkedQueue<TrackedObject> trackedObjects = lidarWorkerTracker
+                        .calculateTrackedObjects(detectedObjects);
                 if (lidarWorkerTracker.getStatus().equals(STATUS.ERROR)) {
                     System.out.println("[ERROR - CRASHING] - " + getName() + " terminating with error: "
                             + "Failed to detect objects");
@@ -125,6 +130,9 @@ public class LiDarService extends MicroService {
                     if (dueTick <= currTick) {
                         // update last tracked objects for a future error
                         Future<?> future = sendEvent(trackedObjectsEvent);
+
+                        StatisticalFolder.getInstance().addNumTrackedObjects(trackedObjects.size());
+
                         if (future == null) {
                             System.err.println("[ERROR - CRASHING] - " + getName() + " terminating with error: "
                                     + "Failed to send TrackedObjectsEvent");
@@ -139,6 +147,7 @@ public class LiDarService extends MicroService {
                         // lidarWorkerTracker);
                     } else {
                         eventsTODO.add(trackedObjectsEvent);
+                        // sort the events by detection time
                         eventsTODO.stream().sorted(Comparator.comparingInt(TrackedObjectsEvent::getDetectionTime))
                                 .collect(ConcurrentLinkedQueue::new, ConcurrentLinkedQueue::add,
                                         ConcurrentLinkedQueue::addAll);
@@ -154,6 +163,9 @@ public class LiDarService extends MicroService {
                 System.out.println("[DETECTOBJECTSEVENT - ERROR] - " + getName() + " is down");
                 sendBroadcast(new CrashedBroadcast("LidarWorker " + lidarWorkerTracker.getID() + " got an error",
                         "in LiDarService " + getName()));
+                StatisticalFolder.getInstance().updateError(
+                        "LidarWorker " + lidarWorkerTracker.getID() + " got an error",
+                        "LiDarService " + getName());
                 terminate();
             }
         });
@@ -168,8 +180,24 @@ public class LiDarService extends MicroService {
                         + "all sensors are inactive");
             }
             sendBroadcast(new TerminatedBroadcast(getName()));
-            terminate();
             lidarWorkerTracker.setStatus(STATUS.DOWN);
+            // terminate();
         });
+    }
+
+    private void terminateLiDarBroadcast() {
+        sendBroadcast(new TerminatedBroadcast(getName()));
+        lidarWorkerTracker.setStatus(STATUS.DOWN);
+        terminate();
+    }
+
+    private void crashLiDarBroadcast(int currTick) {
+        sendBroadcast(new CrashedBroadcast("LidarWorker " + lidarWorkerTracker.getID() + " got an error",
+                "LiDarService " + getName()));
+        lidarWorkerTracker.setStatus(STATUS.ERROR);
+        StatisticalFolder.getInstance().updatelastLiDarWorkerTrackerFrame(currTick, lidarWorkerTracker);
+        StatisticalFolder.getInstance().updateError("LidarWorker " + lidarWorkerTracker.getID(),
+                lidarWorkerTracker.getErrorMsg());
+        terminate();
     }
 }

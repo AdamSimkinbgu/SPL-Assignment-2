@@ -75,4 +75,14 @@ public class LiDarDataBase {
         return stampedCloudPoints;
     }
 
+    public StampedCloudPoints getStampedCloudPoints(int time, String id) {
+        // getter for cloud points
+        for (StampedCloudPoints stampedCP : stampedCloudPoints) {
+            if (stampedCP.getTime() == time && stampedCP.getID().equals(id)) {
+                return stampedCP;
+            }
+        }
+        return null;
+    }
+
 }

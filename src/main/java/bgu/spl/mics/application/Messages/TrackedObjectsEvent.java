@@ -3,24 +3,24 @@ package bgu.spl.mics.application.Messages;
 import bgu.spl.mics.Event;
 import bgu.spl.mics.application.objects.TrackedObject;
 
-import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class TrackedObjectsEvent implements Event<Boolean> {
-    private List<TrackedObject> trackedObjects;
+    private ConcurrentLinkedQueue<TrackedObject> trackedObjects;
     private int detectionTime;
     private int dueTime;
     private DetectObjectsEvent myEvent;
 
-
-    public TrackedObjectsEvent(List<TrackedObject> trackedObjects, int detectionTime, int dueTime, DetectObjectsEvent detectedObjectEvent) {
+    public TrackedObjectsEvent(ConcurrentLinkedQueue<TrackedObject> trackedObjects, int detectionTime, int dueTime,
+            DetectObjectsEvent detectedObjectEvent) {
         this.trackedObjects = trackedObjects;
         this.detectionTime = detectionTime;
         this.dueTime = dueTime;
-        this. myEvent= detectedObjectEvent;
+        this.myEvent = detectedObjectEvent;
 
     }
 
-    public List<TrackedObject> getTrackedObjects() {
+    public ConcurrentLinkedQueue<TrackedObject> getTrackedObjects() {
         return trackedObjects;
     }
 
@@ -35,6 +35,5 @@ public class TrackedObjectsEvent implements Event<Boolean> {
     public DetectObjectsEvent getMyEvent() {
         return myEvent;
     }
-
 
 }

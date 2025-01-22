@@ -45,18 +45,11 @@ public class PoseService extends MicroService {
                 if (pose != null) {
                     PoseEvent poseEvent = new PoseEvent(getName(), pose);
                     Future<?> future = sendEvent(poseEvent);
-                    if (future == null) {
-                        System.err
-                                .println("[TICKBOARDCAST - NO WORK]" + "PoseService: No microservice available at tick "
-                                        + currTick);
-                        gpsimu.setStatus(STATUS.ERROR);
-                    } else {
-                        System.out.println("[TICKBOARDCAST - SUCCESS]"
-                                + "PoseService sending an event about the pose at tick " + currTick);
+                    if (future.get() == null) {
+                        poseCrashBroadcast(currTick);
                     }
                 } else {
-                    System.err.println(
-                            "[TICKBROADCAST - NO WORK]" + "PoseService: No pose data available at tick " + currTick);
+                    poseCrashBroadcast(currTick);
                 }
             } catch (IndexOutOfBoundsException e) {
                 System.err.println("[TICKBROADCAST - INVALID]" + "PoseService: Invalid tick " + e.getMessage());
@@ -74,6 +67,9 @@ public class PoseService extends MicroService {
         subscribeBroadcast(CrashedBroadcast.class, (CrashedBroadcast crashed) -> {
             System.out.println("[CRASHEDBROADCAST RECEIVED] - " + getName() + " got crashed broadcast from "
                     + crashed.getCrasher());
+            gpsimu.setStatus(STATUS.DOWN);
+            sendBroadcast(new TerminatedBroadcast(getName()));
+            StatisticalFolder.getInstance().updatePoses(gpsimu.getPoses());
             terminate();
             // update poses statistical folder
 
@@ -82,7 +78,16 @@ public class PoseService extends MicroService {
         subscribeBroadcast(TerminatedBroadcast.class, (TerminatedBroadcast terminated) -> {
             System.out.println("[TERMINATEDBROADCAST RECEIVED] - " + getName() + " got terminated broadcast from "
                     + terminated.getTerminatorName());
+            gpsimu.setStatus(STATUS.DOWN);
+            sendBroadcast(new TerminatedBroadcast(getName()));
+            StatisticalFolder.getInstance().updatePoses(gpsimu.getPoses());
             terminate();
         });
+    }
+
+    private void poseCrashBroadcast(int currTick) {
+        sendBroadcast(new CrashedBroadcast("PoseService crashed at tick " + currTick, getName()));
+        gpsimu.setStatus(STATUS.ERROR);
+        terminate();
     }
 }

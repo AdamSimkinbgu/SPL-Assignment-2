@@ -41,6 +41,7 @@ public class LandMark {
             List<Double> pointList = new ArrayList<>();
             pointList.add(point.getX());
             pointList.add(point.getY());
+            pointsList.add(pointList);
         }
         return pointsList;
     }

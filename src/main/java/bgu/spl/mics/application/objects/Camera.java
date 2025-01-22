@@ -21,7 +21,7 @@ public class Camera {
     private STATUS status;
     private ConcurrentHashMap<Integer, StampedDetectedObjects> detectedObjects;
     private int timeLimit;
-    private String errorMsg = null;
+    private String errorMsg;
 
     public Camera(int id, int frequency, ConcurrentHashMap<Integer, StampedDetectedObjects> detectedObjects,
             int timeLimit) {
@@ -30,6 +30,7 @@ public class Camera {
         this.status = STATUS.UP;
         this.detectedObjects = detectedObjects;
         this.timeLimit = timeLimit;
+        this.errorMsg = null;
     }
 
     public Camera(int id, int frequency, String filePath, String cameraKey) {

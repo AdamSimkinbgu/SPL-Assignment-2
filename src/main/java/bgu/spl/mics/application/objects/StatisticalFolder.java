@@ -9,13 +9,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -26,11 +28,20 @@ import com.google.gson.JsonParser;
  * identified.
  */
 public class StatisticalFolder {
-    private int systemRuntime;
-    private int numDetectedObjects;
-    private int numTrackedObjects;
-    private int numLandmarks;
+    private AtomicInteger systemRuntime;
+    private AtomicInteger numDetectedObjects;
+    private AtomicInteger numTrackedObjects;
+    private AtomicInteger numLandmarks;
     private String outputFilePath = initializeOutputFile();
+    private JsonObject camerasLastFrame = null;
+    private JsonObject lidarWorkerTrackersLastFrame = null;
+    private ConcurrentHashMap<Integer, JsonObject> poses = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, JsonObject> landmarks = new ConcurrentHashMap<>();
+    private String errorMsg = null;
+    private String faultySensor = null;
+    private volatile boolean systemIsDone;
+    private Gson prettyGson;
+    private Gson regularGson;
 
     public static StatisticalFolder getInstance() {
         return StatisticalFolderHolder.instance;
@@ -41,44 +52,59 @@ public class StatisticalFolder {
     }
 
     private StatisticalFolder() {
-        systemRuntime = new Random().nextInt(1000);
-        numDetectedObjects = 0;
-        numTrackedObjects = 0;
-        numLandmarks = 0;
+        systemRuntime = new AtomicInteger(0);
+        numDetectedObjects = new AtomicInteger(0);
+        numTrackedObjects = new AtomicInteger(0);
+        numLandmarks = new AtomicInteger(0);
         File file = new File(outputFilePath);
         file.delete();
+        prettyGson = new GsonBuilder().setPrettyPrinting().create();
+        regularGson = new Gson();
+        systemIsDone = false;
     }
 
     public int getSystemRuntime() {
-        return systemRuntime;
+        return systemRuntime.get();
     }
 
     public void increaseSystemRuntime() {
-        systemRuntime++;
+        systemRuntime.incrementAndGet();
     }
 
     public int getNumDetectedObjects() {
-        return numDetectedObjects;
+        return numDetectedObjects.get();
     }
 
     public int getNumTrackedObjects() {
-        return numTrackedObjects;
+        return numTrackedObjects.get();
     }
 
     public int getNumLandmarks() {
-        return numLandmarks;
+        return numLandmarks.get();
     }
 
-    public void increaseNumDetectedObjects() {
-        numDetectedObjects++;
+    public boolean getSystemIsDone() {
+        return systemIsDone;
     }
 
-    public void increaseNumTrackedObjects() {
-        numTrackedObjects++;
+    public void setSystemIsDone(boolean isDone) {
+        systemIsDone = isDone;
     }
 
-    public void increaseNumLandmarks() {
-        numLandmarks++;
+    public void addNumDetectedObjects(int size) {
+        numDetectedObjects.addAndGet(size);
+    }
+
+    public void addNumTrackedObjects(int size) {
+        numTrackedObjects.addAndGet(size);
+    }
+
+    public void setNumLandmarks(int size) {
+        numLandmarks.set(size);
+    }
+
+    public void setLastWorkTick(int time) {
+        systemRuntime.set(time);
     }
 
     private String initializeOutputFile() {
@@ -100,39 +126,6 @@ public class StatisticalFolder {
         return path.toAbsolutePath().toString();
     }
 
-    /*
-     * the following functions are (just to keep it neat):
-     * 1) updateStatistics
-     * 2) updateLandmarks
-     * 3) updateCamLastFrame
-     * 4) updatelastLiDarWorkerTrackerFrame
-     * 5) updatePoses
-     * 6) updateOutputCamError
-     * are more needed? add under this comment
-     */
-
-    public void updateStatistics() {
-        checkIfOutputFileExists();
-        try (FileReader reader = new FileReader(outputFilePath)) {
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            JsonObject output = reader.ready() ? JsonParser.parseReader(reader).getAsJsonObject() : new JsonObject();
-            JsonObject statistics = output.has("statistics") ? output.getAsJsonObject("statistics") : new JsonObject();
-            statistics.addProperty("systemRuntime", systemRuntime);
-            statistics.addProperty("numDetectedObjects", numDetectedObjects);
-            statistics.addProperty("numTrackedObjects", numTrackedObjects);
-            statistics.addProperty("numLandmarks", numLandmarks);
-            output.add("statistics", statistics);
-            synchronized (outputFilePath) {
-                try (FileWriter writer = new FileWriter(outputFilePath)) {
-                    gson.toJson(output, writer);
-                    System.out.println("Statistics were updated in " + outputFilePath);
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("Failed to update the statistics in the output file because of " + e.getMessage());
-        }
-    }
-
     private void checkIfOutputFileExists() {
         File file = new File(outputFilePath);
         if (file.exists()) {
@@ -150,133 +143,134 @@ public class StatisticalFolder {
         }
     }
 
-    public void updateLandmarks(ArrayList<LandMark> landmarks) {
-        checkIfOutputFileExists();
-        try (FileReader reader = new FileReader(outputFilePath)) {
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            JsonObject output = reader.ready() ? JsonParser.parseReader(reader).getAsJsonObject() : new JsonObject();
-            JsonObject landMarks = output.has("landMarks") ? output.getAsJsonObject("landMarks") : new JsonObject();
-            for (LandMark landmark : landmarks) {
-                JsonObject landmarkJson = new JsonObject();
-                landmarkJson.addProperty("id", landmark.getID());
-                landmarkJson.addProperty("description", landmark.getDescription());
-                JsonObject coordinates = new JsonObject();
-                for (List<Double> point : landmark.getPoints()) {
-                    JsonObject pointJson = new JsonObject();
-                    pointJson.addProperty("x", point.get(0));
-                    pointJson.addProperty("y", point.get(1));
-                    coordinates.add("Coordinates", pointJson);
-                    // landmarkJson.add(landmark.getID(), landmarkJson);
-                }
-                landMarks.add(landmark.getID(), landmarkJson);
-
+    public synchronized void updateLandmarks(ArrayList<LandMark> landmarks) {
+        for (LandMark landmark : landmarks) {
+            JsonObject landmarkJsonObject = new JsonObject();
+            landmarkJsonObject.addProperty("id", landmark.getID());
+            landmarkJsonObject.addProperty("description", landmark.getDescription());
+            JsonArray landmarkJsonCoordinates = new JsonArray();
+            for (List<Double> cp : landmark.getPoints()) {
+                JsonObject cpJson = new JsonObject();
+                cpJson.addProperty("x", cp.get(0));
+                cpJson.addProperty("y", cp.get(1));
+                landmarkJsonCoordinates.add(cpJson);
             }
-            output.add("landMarks", landMarks);
-            synchronized (outputFilePath) {
-                try (FileWriter writer = new FileWriter(outputFilePath)) {
-                    gson.toJson(output, writer);
-                    System.out.println("Statistics were updated in " + outputFilePath);
-                }
-            }
-            numLandmarks = landMarks.size();
-        } catch (Exception e) {
-            System.err.println("Failed to update the LandMarks in the output file because of " + e.getMessage());
+            landmarkJsonObject.add("coordinates", landmarkJsonCoordinates);
+            this.landmarks.put(landmark.getID(), landmarkJsonObject);
         }
     }
 
     public void updateCamLastFrame(int time, Camera cam) {
-        checkIfOutputFileExists();
-        try (FileReader reader = new FileReader(outputFilePath)) {
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            JsonObject output = reader.ready() ? JsonParser.parseReader(reader).getAsJsonObject() : new JsonObject();
-            JsonObject cameraLastFrame = output.has("lastCamerasFrame") ? output.getAsJsonObject("lastCamerasFrame")
-                    : new JsonObject();
-            JsonObject lastFrameJson = new JsonObject();
-            lastFrameJson.addProperty("time", time);
-            lastFrameJson.add("detectedObjects", gson.toJsonTree(cam.getDetectedObjects().get(time)));
-            cameraLastFrame.add("Camera" + cam.getID(), lastFrameJson);
-            output.add("lastCamerasFrame", cameraLastFrame);
-            synchronized (outputFilePath) {
-                try (FileWriter writer = new FileWriter(outputFilePath)) {
-                    gson.toJson(output, writer);
-                    System.out.println("Statistics were updated in " + outputFilePath);
-                }
-            }
-            numDetectedObjects += cam.getDetectedObjects().values().stream()
-                    .filter(detectedObjects -> detectedObjects.getTime() == time).count();
-        } catch (Exception e) {
-            System.err.println("Failed to update the camera's output file because of " + e.getMessage());
-        }
+        JsonObject allCamerasLastFrames = camerasLastFrame == null ? new JsonObject() : camerasLastFrame;
+        JsonObject lastCamerasFrame = allCamerasLastFrames.has("lastCamerasFrame")
+                ? allCamerasLastFrames.getAsJsonObject("lastCamerasFrame")
+                : new JsonObject();
+        JsonObject currCamLastFrame = new JsonObject();
+        JsonObject lastFrameJson = new JsonObject();
+        lastFrameJson.addProperty("time", time);
+        // because we already know we are going to override the last frame, we can just
+        // add the new data
+        lastFrameJson.add("detectedObjects", prettyGson.toJsonTree(cam.getDetectedObjects(time)));
+        currCamLastFrame.add("Camera" + cam.getID(), lastFrameJson);
+        lastCamerasFrame.add("Camera" + cam.getID(), lastFrameJson);
+        allCamerasLastFrames.add("lastCamerasFrame", lastCamerasFrame);
+        camerasLastFrame = allCamerasLastFrames;
     }
 
     public void updatelastLiDarWorkerTrackerFrame(int time, LiDarWorkerTracker lidar) {
-        checkIfOutputFileExists();
-        try (FileReader reader = new FileReader(outputFilePath)) {
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            JsonObject output = reader.ready() ? JsonParser.parseReader(reader).getAsJsonObject() : new JsonObject();
-            JsonObject lidarLastFrame = output.has("lastLiDarWorkerTrackersFrame")
-                    ? output.getAsJsonObject("lastLiDarWorkerTrackersFrame")
-                    : new JsonObject();
-            JsonObject lastFrameJson = new JsonObject();
-            lastFrameJson.addProperty("time", time);
-            lastFrameJson.add("trackedObjects",
-                    lidar.didDetectAny() ? gson.toJsonTree(lidar.getLastTrackedObject()) : new JsonObject());
-            lidarLastFrame.add("LiDarWorkerTracker" + lidar.getID(), lastFrameJson);
-            output.add("lastLiDarWorkerTrackersFrame", lidarLastFrame);
-            synchronized (outputFilePath) {
-                try (FileWriter writer = new FileWriter(outputFilePath)) {
-                    gson.toJson(output, writer);
-                    System.out.println("Statistics were updated in " + outputFilePath);
-                }
+        JsonObject allLiDarWorkerTrackersLastFrames = lidarWorkerTrackersLastFrame == null ? new JsonObject()
+                : lidarWorkerTrackersLastFrame;
+        JsonObject lastLiDarWorkerTrackersFrames = allLiDarWorkerTrackersLastFrames.has("lastLiDarWorkerTrackersFrame")
+                ? allLiDarWorkerTrackersLastFrames.getAsJsonObject("lastLiDarWorkerTrackerFrame")
+                : new JsonObject();
+        JsonObject currLiDarWorkerTrackerLastFrame = new JsonObject();
+        JsonObject lastFrameJson = new JsonObject();
+        lastFrameJson.addProperty("id", lidar.getID());
+        lastFrameJson.addProperty("time", time);
+        ConcurrentLinkedQueue<TrackedObject> trackedObjects = lidar.getLastTrackedObject();
+        for (TrackedObject trackedObject : trackedObjects) {
+            // for each tracked object, make {id, time, description, coordinates}
+            JsonObject trackedObjectJson = new JsonObject();
+            trackedObjectJson.addProperty("id", trackedObject.getID());
+            trackedObjectJson.addProperty("time", trackedObject.getTime());
+            trackedObjectJson.addProperty("description", trackedObject.getDescription());
+            JsonArray trackedObjectPoints = new JsonArray();
+            for (CloudPoint cp : trackedObject.getPoints()) {
+                // for each coordinate, make {x, y}
+                JsonObject cpJson = new JsonObject();
+                cpJson.addProperty("x", cp.getX());
+                cpJson.addProperty("y", cp.getY());
+                trackedObjectPoints.add(cpJson);
             }
-            numTrackedObjects += lidar.getLastTrackedObject().stream()
-                    .filter(trackedObject -> trackedObject.getTime() == time).count();
-        } catch (Exception e) {
-            System.err.println("Failed to update the LiDarWorker's output file because of " + e.getMessage());
+            trackedObjectJson.add("coordinates", trackedObjectPoints);
+            lastFrameJson.add(trackedObject.getID(), trackedObjectJson);
         }
+        // if needed, these will override the last frame of the lidar that is being
+        // updated
+        // other wise, they will just add the new data
+        currLiDarWorkerTrackerLastFrame.add("LiDarWorkerTracker" + lidar.getID(), lastFrameJson);
+        lastLiDarWorkerTrackersFrames.add("LiDarWorkerTracker" + lidar.getID(), currLiDarWorkerTrackerLastFrame);
+        allLiDarWorkerTrackersLastFrames.add("lastLiDarWorkerTrackersFrame", lastLiDarWorkerTrackersFrames);
+        lidarWorkerTrackersLastFrame = allLiDarWorkerTrackersLastFrames;
     }
 
     public void updatePoses(ConcurrentHashMap<Integer, Pose> poses) {
-        checkIfOutputFileExists();
-        try (FileReader reader = new FileReader(outputFilePath)) {
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            JsonObject output = reader.ready() ? JsonParser.parseReader(reader).getAsJsonObject() : new JsonObject();
-            JsonObject posesJson = output.has("poses") ? output.getAsJsonObject("poses") : new JsonObject();
-            for (Pose pose : poses.values()) {
-                JsonObject poseJson = new JsonObject();
-                poseJson.addProperty("time", pose.getTime());
-                poseJson.addProperty("x", pose.getX());
-                poseJson.addProperty("y", pose.getY());
-                poseJson.addProperty("yaw", pose.getYaw());
-                posesJson.add("pose" + pose.getTime(), poseJson);
-            }
-            output.add("poses", posesJson);
-            synchronized (outputFilePath) {
-                try (FileWriter writer = new FileWriter(outputFilePath)) {
-                    gson.toJson(output, writer);
-                    System.out.println("Statistics were updated in " + outputFilePath);
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("Failed to update the poses in the output file because of " + e.getMessage());
+        this.poses.clear();
+        for (Integer key : poses.keySet()) {
+            Pose pose = poses.get(key);
+            JsonObject poseJson = new JsonObject();
+            poseJson.addProperty("time", pose.getTime());
+            poseJson.addProperty("x", pose.getX());
+            poseJson.addProperty("y", pose.getY());
+            poseJson.addProperty("yaw", pose.getYaw());
+            this.poses.put(key, poseJson);
         }
     }
 
-    public void updateOutputCamError(int time, Camera cam) {
-        checkIfOutputFileExists();
-        try (FileReader reader = new FileReader(outputFilePath)) {
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            JsonObject output = reader.ready() ? JsonParser.parseReader(reader).getAsJsonObject() : new JsonObject();
-            String errorMsg = cam.getErrorMsg();
-            output.addProperty("error", errorMsg);
-            output.addProperty("faultySensor", "Camera" + cam.getID());
-            try (FileWriter writer = new FileWriter(outputFilePath)) {
-                gson.toJson(output, writer);
-                System.out.println("Error of Camera " + cam.getID() + " was updated in " + outputFilePath);
-            }
-        } catch (Exception e) {
-            System.err.println("Failed to update the camera's output file because of " + e.getMessage());
-        }
+    public void updateError(String errorMsg, String faultySensor) {
+        this.errorMsg = errorMsg;
+        this.faultySensor = faultySensor;
     }
 
+    public void createOutput() {
+        checkIfOutputFileExists();
+        JsonObject output = new JsonObject();
+        addGoodOutput(output);
+        if (errorMsg != null) {
+            addErrorOutput(output);
+        }
+        writeOutputToFile(output);
+    }
+
+    private void addGoodOutput(JsonObject output) {
+        JsonObject statistics = new JsonObject();
+        statistics.addProperty("systemRuntime", systemRuntime.get());
+        statistics.addProperty("numDetectedObjects", numDetectedObjects.get());
+        statistics.addProperty("numTrackedObjects", numTrackedObjects.get());
+        statistics.addProperty("numLandmarks", numLandmarks.get());
+        output.add("statistics", statistics);
+        JsonObject landmarkJsonObject = new JsonObject();
+        for (JsonObject landmark : landmarks.values()) {
+            landmarkJsonObject.add(landmark.get("id").getAsString(), landmark);
+        }
+        output.add("landmarks", landmarkJsonObject);
+    }
+
+    private void addErrorOutput(JsonObject output) {
+        output.addProperty("error", errorMsg);
+        output.addProperty("faultySensor", faultySensor);
+        output.addProperty("lastCamerasFrame", camerasLastFrame.toString());
+        output.addProperty("lastLiDarWorkerTrackersFrame", lidarWorkerTrackersLastFrame.toString());
+        output.addProperty("poses", poses.toString());
+    }
+
+    private synchronized void writeOutputToFile(JsonObject output) {
+        try (FileWriter writer = new FileWriter(outputFilePath)) {
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            gson.toJson(output, writer);
+            System.out.println("Output was created in " + outputFilePath);
+        } catch (Exception e) {
+            System.err.println("Failed to create the output file because of " + e.getMessage());
+        }
+    }
 }

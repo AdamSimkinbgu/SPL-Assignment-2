@@ -3,6 +3,7 @@ package bgu.spl.mics.application.services;
 import bgu.spl.mics.MicroService;
 import bgu.spl.mics.application.Messages.TerminatedBroadcast;
 import bgu.spl.mics.application.Messages.TickBroadcast;
+import bgu.spl.mics.application.Messages.ZeroCamSensBroadcast;
 import bgu.spl.mics.application.objects.StatisticalFolder;
 
 /**
@@ -15,6 +16,7 @@ public class TimeService extends MicroService {
     private int TicksLifeSpan;
     private int currentTick;
     private int sleepTime;
+    private StatisticalFolder sf;
 
     /**
      * Constructor for TimeService.
@@ -26,8 +28,9 @@ public class TimeService extends MicroService {
         super("TimeService");
         this.TicksinSeconds = TickTime; // how many ticks there are in 1 second
         this.TicksLifeSpan = Duration; // how many ticks the service will broadcast
-        this.currentTick = 0;
+        this.currentTick = 1;
         this.sleepTime = 1000 / TicksinSeconds;
+        this.sf = StatisticalFolder.getInstance();
     }
 
     /**
@@ -37,23 +40,30 @@ public class TimeService extends MicroService {
      */
     @Override
     protected void initialize() {
+        subscribeBroadcast(TerminatedBroadcast.class, (TerminatedBroadcast terminat) -> {
+            System.out.println("[TERMINATED] - " + getName() + " received ZeroCamSensBroadcast, terminating");
+            StatisticalFolder.getInstance().setLastWorkTick(currentTick);
+            sendBroadcast(new TerminatedBroadcast(getName()));
+            terminate();
+        });
         System.out.println("[INITIALIZING] - " + getName() + " started broadcasting ticks every " + sleepTime + "ms, "
                 + TicksLifeSpan + " ticks total, starting tick " + currentTick);
         do {
-            System.out.println("[TICKBROADCAST - SENT] - " + getName() + " sent tick " + currentTick);
-            sendBroadcast(new TickBroadcast(currentTick));
             try {
+                System.out.println("[TICKBROADCAST - SENT] - " + getName() + " sent tick " + currentTick);
+                sendBroadcast(new TickBroadcast(currentTick));
                 Thread.sleep(sleepTime);
+                currentTick++;
+                StatisticalFolder.getInstance().increaseSystemRuntime();
             } catch (InterruptedException e) {
                 System.out.println("[INTERRUPTED] - " + "TimeService was interrupted at tick " + currentTick
                         + " with error: " + e.getMessage() + ", terminating");
                 break;
             }
-            currentTick++;
-        } while (currentTick <= TicksLifeSpan);
-        sendBroadcast(new TerminatedBroadcast(getName()));
+        } while (currentTick <= TicksLifeSpan && sf.getSystemIsDone() == false);
+        // sendBroadcast(new TerminatedBroadcast(getName()));
         System.out.println("[TERMINATED] - " + getName() + " terminated");
         terminate();
-        StatisticalFolder.getInstance().updateStatistics();
+        StatisticalFolder.getInstance().createOutput();
     }
 }

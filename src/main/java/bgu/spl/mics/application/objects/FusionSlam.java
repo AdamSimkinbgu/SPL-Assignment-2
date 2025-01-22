@@ -53,7 +53,7 @@ public class FusionSlam {
         return landmarks;
     }
 
-    public Map<Integer, Pose> getPoses() {
+    public ConcurrentHashMap<Integer, Pose> getPoses() {
         return poses;
     }
 
@@ -102,7 +102,7 @@ public class FusionSlam {
         return pose;
     }
 
-    public synchronized void analyzeObjects(List<TrackedObject> trackedObjects) {
+    public synchronized void analyzeObjects(ConcurrentLinkedQueue<TrackedObject> trackedObjects) {
         for (TrackedObject trackedObj : trackedObjects) {
             Pose currPose = poses.get(trackedObj.getTime());
             String tObjID = trackedObj.getID();
@@ -115,6 +115,9 @@ public class FusionSlam {
             System.out.println(
                     "FusionSlam: Converted " + points.size() + " local cloud points to global coordinates for object "
                             + tObjID + " at tick " + trackedObj.getTime());
+            for (List<Double> pt : points) {
+                System.out.println("FusionSlam: Global point: " + pt.get(0) + ", " + pt.get(1));
+            }
             LandMark landmarkToUpdate = findLankmark(tObjID); // findLandmark(tObjID);
             if (landmarkToUpdate != null) {
                 System.out.println("FusionSlam: Updating existing landmark " + tObjID);
@@ -129,15 +132,16 @@ public class FusionSlam {
                 }
                 LandMark newLandmark = new LandMark(tObjID, trackedObj.getDescription(), cloudPoints);
                 landmarks.add(newLandmark);
-                StatisticalFolder.getInstance().increaseNumLandmarks();
-                StatisticalFolder.getInstance().updateLandmarks(landmarks);
+                StatisticalFolder.getInstance().setNumLandmarks(landmarks.size());
             }
         }
     }
 
     private synchronized void updateLandmarkCoordinates(LandMark landmark, List<List<Double>> points) {
         List<List<Double>> currentPts = landmark.getPoints();
+
         if (currentPts.size() == points.size()) {
+            // Create a new list of averaged points:
             List<List<Double>> averagedPts = new ArrayList<>();
             for (int i = 0; i < currentPts.size(); i++) {
                 List<Double> currentPt = currentPts.get(i);
@@ -149,11 +153,21 @@ public class FusionSlam {
                 avgPt.add(avgY);
                 averagedPts.add(avgPt);
             }
-            System.out.println(
-                    "FusionSlam: Averaged " + points.size() + " cloud points for landmark " + landmark.getID());
+
+            // Convert 'averagedPts' into CloudPoints and assign them back to the landmark:
+            ConcurrentLinkedQueue<CloudPoint> newCoordinates = new ConcurrentLinkedQueue<>();
+            for (List<Double> avgPt : averagedPts) {
+                newCoordinates.add(new CloudPoint(avgPt.get(0), avgPt.get(1)));
+            }
+            landmark.setCoordinates(newCoordinates);
+
+            System.out.println("FusionSlam: Averaged " + points.size()
+                    + " cloud points for landmark " + landmark.getID()
+                    + " (updated the landmark with new coordinates)");
         } else {
-            System.out.println(
-                    "FusionSlam: Integrating " + points.size() + " cloud points for landmark " + landmark.getID());
+            // If the new point list has a different size, we do an “integrate” step:
+            System.out.println("FusionSlam: Integrating " + points.size()
+                    + " cloud points for landmark " + landmark.getID());
             integrateLandmarkCoordinates(landmark, points);
         }
     }
@@ -180,7 +194,7 @@ public class FusionSlam {
         }
         ConcurrentLinkedQueue<CloudPoint> ConvertedIntegratedPoints = new ConcurrentLinkedQueue<>();
         for (List<Double> pt : integratedPts) {
-            ConvertedIntegratedPoints.add(new CloudPoint(pt.get(0), pt.get(1));
+            ConvertedIntegratedPoints.add(new CloudPoint(pt.get(0), pt.get(1)));
         }
         landmark.setCoordinates(ConvertedIntegratedPoints);
         System.out.println("FusionSlam: Integrated cloud points for landmark " + landmark.getID());
@@ -190,7 +204,10 @@ public class FusionSlam {
             Pose robotPose) {
         List<List<Double>> transformedPoints = new ArrayList<>();
 
-        double angleRad = Math.toRadians(robotPose.getYaw());
+        for (CloudPoint tpt : localPts) {
+            System.out.println("FusionSlam: Local point: " + tpt.getX() + ", " + tpt.getY());
+        }
+        double angleRad = robotPose.getYaw() * Math.PI / 180.0;
         double cosine = Math.cos(angleRad);
         double sine = Math.sin(angleRad);
 
@@ -228,5 +245,15 @@ public class FusionSlam {
 
     public int getNumberOfActiveCameras() {
         return activeCameras.get();
+    }
+
+    public void applyRotationAndTranslation(Double xlocal, Double ylocal, Double yaw, Double xglobal, Double yglobal) {
+        double angleRad = Math.toRadians(yaw);
+        double cosine = Math.cos(angleRad);
+        double sine = Math.sin(angleRad);
+        double globalX = cosine * xlocal - sine * ylocal + xglobal;
+        double globalY = sine * xlocal + cosine * ylocal + yglobal;
+        System.out.println("FusionSlam: Converted local point (" + xlocal + ", " + ylocal + ") to global coordinates ("
+                + globalX + ", " + globalY + ")");
     }
 }

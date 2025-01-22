@@ -73,30 +73,6 @@ public class MessageBusImpl implements MessageBus {
 
 	}
 
-	// @Override
-	// public void sendBroadcast(Broadcast b) {
-	// ConcurrentLinkedQueue<MicroService> broadcastQueue =
-	// broadcasthashmap.get(b.getClass());
-	// if (broadcastQueue != null) {
-	// if (!(broadcastQueue.isEmpty())) {
-	// synchronized (broadcastQueue) {
-	// for (MicroService subscribedforb : broadcastQueue) {
-	// if (microhashmap.get(subscribedforb) == null) {
-	// System.out.println("Error: MicroService " + subscribedforb.getName() + " not
-	// found");
-	// } else {
-	// microhashmap.get(subscribedforb).add(b);
-	// }
-	// }
-	// }
-	// } else {
-	// System.out.println("Error: Broadcast " + b.getClass() + " Queue is empty");
-	// }
-	// } else {
-	// System.out.println("Error: Broadcast " + b.getClass() + " not found");
-	// }
-	// }
-
 	@Override
 	public void sendBroadcast(Broadcast b) {
 		ConcurrentLinkedQueue<MicroService> broadcastQueue = broadcasthashmap.get(b.getClass());
@@ -108,8 +84,8 @@ public class MessageBusImpl implements MessageBus {
 						synchronized (messageQueue) {
 							messageQueue.add(b);
 							messageQueue.notifyAll(); // Notify the microservice thread
-							System.out.println("[SENDBROADCAST] - " + "Broadcast " + b.getClass() + " sent to "
-									+ subscribed.getName());
+							System.out.println(
+									"[SENDBROADCAST] - " + "Broadcast " + b.getClass() + "sent to " + subscribed.getName());
 						}
 					} else {
 						System.err.println("[SENDBROADCAST ERROR] - " + "MicroService " + subscribed.getName()
@@ -123,16 +99,94 @@ public class MessageBusImpl implements MessageBus {
 		}
 	}
 
+	// @Override
+	// public void sendBroadcast(Broadcast b) {
+	// if (broadcasthashmap.containsKey(b.getClass())) {
+	// ConcurrentLinkedQueue<MicroService> broadcastQueue =
+	// broadcasthashmap.get(b.getClass());
+	// if (broadcastQueue != null) {
+	// synchronized (broadcastQueue) {
+	// if (!broadcastQueue.isEmpty()) {
+	// for (MicroService subscribed : broadcastQueue) {
+	// ConcurrentLinkedQueue<Message> messageQueue = microhashmap.get(subscribed);
+	// if (messageQueue != null) {
+	// synchronized (messageQueue) {
+	// if (messageQueue != null) {
+	// messageQueue.add(b);
+	// messageQueue.notify();
+	// System.out.println("[SENDBROADCAST] - " + "Broadcast " + b.getClass() + "
+	// sent to "
+	// + subscribed.getName());
+	// return;
+	// } // else {
+	// // System.err.println("[SENDBROADCAST ERROR] - " + "MicroService " +
+	// // subscribed.getName() + " not found in microhashmap");
+	// // }
+	// }
+	// }
+	// }
+	// }
+	// }
+	// }
+	// }
+	// System.out.println("[SENDBROADCAST ERROR] - " + "Broadcast " + b.getClass() +
+	// " not found in broadcasthashmap");
+	// }
+
+	// @Override
+	// public <T> Future<T> sendEvent(Event<T> e) {
+	// MicroService chosen = null;
+	// if (eventshashmap.containsKey(e.getClass())) {
+	// ConcurrentLinkedQueue<MicroService> eventQueue =
+	// eventshashmap.get(e.getClass());
+	// if (eventQueue != null && !eventQueue.isEmpty()) {
+	// synchronized (eventQueue) {
+	// if (!eventQueue.isEmpty()) {
+	// chosen = eventQueue.poll();
+	// eventQueue.add(chosen);
+	// }
+	// }
+	// Future<T> future = new Future<>();
+	// futurehashmap.put(e, future);
+	// if (chosen != null) {
+	// ConcurrentLinkedQueue<Message> messageQueue = microhashmap.get(chosen);
+	// if (messageQueue != null) {
+	// synchronized (messageQueue) {
+	// if (messageQueue != null) {
+	// messageQueue.add(e);
+	// messageQueue.notify();
+	// System.out.println("[SENDEVENT] - " + "Event " + e.getClass() + " sent to " +
+	// chosen.getName());
+	// } // else {
+	// // System.err.println("[SENDEVENT ERROR] - " + "MicroService " +
+	// // chosen.getName() + " not found in microhashmap");
+	// // futurehashmap.remove(e);
+	// // return null;
+	// // }
+	// }
+	// }
+	// }
+	// return future;
+	// }
+	// }
+	// System.out.println("[SENDEVENT ERROR] - " + "Event " + e.getClass() + " not
+	// found in eventshashmap");
+	// complete(e, null); // complete the event with null if no microservice is
+	// available
+	// return null;
+	// }
+
 	@Override
 	public <T> Future<T> sendEvent(Event<T> e) {
 		MicroService chosen = null;
 		ConcurrentLinkedQueue<MicroService> eventQueue = eventshashmap.get(e.getClass());
 
 		synchronized (eventQueue) {
-			if (eventQueue == null || eventQueue.isEmpty()) {
-				System.out.println("[SENDEVENT ERROR] - " + "Event " + e.getClass() + " not found in eventshashmap");
-				return null;
-			}
+			// if (eventQueue == null || eventQueue.isEmpty()) {
+			// System.out.println("[SENDEVENT ERROR] - " + "Event " + e.getClass() + " not
+			// found in eventshashmap");
+			// return null;
+			// }
 
 			// if (eventQueue.isEmpty()) {
 			// System.out.println("[SENDEVENT ERROR] - " + "Event " + e.getClass() + " Queue
@@ -165,7 +219,8 @@ public class MessageBusImpl implements MessageBus {
 			// if (messageQueue != null) {
 			messageQueue.add(e);
 			messageQueue.notify(); // Notify the microservice that a new message has arrived
-			System.out.println("[SENDEVENT] - " + "Event " + e.getClass() + " sent to " + chosen.getName());
+			System.out.println("[SENDEVENT] - " + "Event " + e.getClass() + " sent to " +
+					chosen.getName());
 
 			// } else {
 			// System.err.println("[SENDEVENT ERROR] - " + "MicroService " +
