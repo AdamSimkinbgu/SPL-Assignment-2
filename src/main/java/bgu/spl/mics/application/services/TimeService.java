@@ -40,29 +40,57 @@ public class TimeService extends MicroService {
      */
     @Override
     protected void initialize() {
-        subscribeBroadcast(TerminatedBroadcast.class, (TerminatedBroadcast terminat) -> {
+        subscribeBroadcast(ZeroCamSensBroadcast.class, (ZeroCamSensBroadcast terminat) -> {
             System.out.println("[TERMINATED] - " + getName() + " received ZeroCamSensBroadcast, terminating");
             StatisticalFolder.getInstance().setLastWorkTick(currentTick);
+            StatisticalFolder.getInstance().setSystemIsDone(true);
             sendBroadcast(new TerminatedBroadcast(getName()));
             terminate();
         });
+        subscribeBroadcast(TickBroadcast.class, (TickBroadcast tick) -> {
+            if (currentTick < TicksLifeSpan && sf.getSystemIsDone() == false) {
+                try {
+                    System.out.println("[TICKBROADCAST - SENT] - " + getName() + " sent tick " + currentTick);
+                    Thread.sleep(sleepTime);
+                    currentTick++;
+                    StatisticalFolder.getInstance().increaseSystemRuntime();
+                    sendBroadcast(new TickBroadcast(currentTick));
+                } catch (InterruptedException e) {
+                    System.out.println("[INTERRUPTED] - " + "TimeService was interrupted at tick " + currentTick
+                            + " with error: " + e.getMessage() + ", terminating");
+                }
+            } else {
+                System.out.println("[TERMINATED] - " + getName() + " is done broadcasting ticks, terminating");
+                sendBroadcast(new TerminatedBroadcast(getName()));
+                terminate();
+            }
+        });
+        subscribeBroadcast(TerminatedBroadcast.class, (TerminatedBroadcast terminated) -> {
+            if (terminated.getTerminatorName().equals("TimeService")) {
+                System.out.println("[TERMINATED] - " + getName() + " received TerminatedBroadcast from "
+                        + terminated.getTerminatorName() + ", terminating");
+                terminate();
+            }
+        });
         System.out.println("[INITIALIZING] - " + getName() + " started broadcasting ticks every " + sleepTime + "ms, "
                 + TicksLifeSpan + " ticks total, starting tick " + currentTick);
-        do {
-            try {
-                System.out.println("[TICKBROADCAST - SENT] - " + getName() + " sent tick " + currentTick);
-                sendBroadcast(new TickBroadcast(currentTick));
-                Thread.sleep(sleepTime);
-                currentTick++;
-                StatisticalFolder.getInstance().increaseSystemRuntime();
-            } catch (InterruptedException e) {
-                System.out.println("[INTERRUPTED] - " + "TimeService was interrupted at tick " + currentTick
-                        + " with error: " + e.getMessage() + ", terminating");
-                break;
-            }
-        } while (currentTick <= TicksLifeSpan && sf.getSystemIsDone() == false);
+        sendBroadcast(new TickBroadcast(currentTick));
+        // do {
+        // try {
+        // System.out.println("[TICKBROADCAST - SENT] - " + getName() + " sent tick " +
+        // currentTick);
+        // sendBroadcast(new TickBroadcast(currentTick));
+        // Thread.sleep(sleepTime);
+        // currentTick++;
+        // StatisticalFolder.getInstance().increaseSystemRuntime();
+        // } catch (InterruptedException e) {
+        // System.out.println("[INTERRUPTED] - " + "TimeService was interrupted at tick
+        // " + currentTick
+        // + " with error: " + e.getMessage() + ", terminating");
+        // break;
+        // }
+        // } while (currentTick <= TicksLifeSpan && sf.getSystemIsDone() == false);
         // sendBroadcast(new TerminatedBroadcast(getName()));
-        System.out.println("[TERMINATED] - " + getName() + " terminated");
-        terminate();
+        // terminate();
     }
 }

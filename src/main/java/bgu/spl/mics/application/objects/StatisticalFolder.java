@@ -9,7 +9,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -167,53 +169,39 @@ public class StatisticalFolder {
         JsonObject lastCamerasFrame = allCamerasLastFrames.has("lastCamerasFrame")
                 ? allCamerasLastFrames.getAsJsonObject("lastCamerasFrame")
                 : new JsonObject();
+
         JsonObject currCamLastFrame = new JsonObject();
-        JsonObject lastFrameJson = new JsonObject();
-        lastFrameJson.addProperty("time", time);
-        // because we already know we are going to override the last frame, we can just
-        // add the new data
-        lastFrameJson.add("detectedObjects", prettyGson.toJsonTree(cam.getDetectedObjects(time)));
-        currCamLastFrame.add("Camera" + cam.getID(), lastFrameJson);
-        lastCamerasFrame.add("Camera" + cam.getID(), lastFrameJson);
-        allCamerasLastFrames.add("lastCamerasFrame", lastCamerasFrame);
-        camerasLastFrame = allCamerasLastFrames;
+        currCamLastFrame.addProperty("time", time);
+        JsonArray cameraLastDetectedObjectsArray = new JsonArray();
+        ArrayList<DetectedObject> detectedObjectsList = cam.getLastDetectedObjects();
+        for (DetectedObject detectedObject : detectedObjectsList) {
+            JsonObject currentDetectedObject = new JsonObject();
+            currentDetectedObject.addProperty("id", detectedObject.getId());
+            currentDetectedObject.addProperty("description", detectedObject.getDescription());
+            cameraLastDetectedObjectsArray.add(currentDetectedObject);
+        }
+        currCamLastFrame.add("detectedObjects", cameraLastDetectedObjectsArray);
+        camerasLastFrame.add("Camera " + cam.getID(), currCamLastFrame);
     }
 
     public void updatelastLiDarWorkerTrackerFrame(int time, LiDarWorkerTracker lidar) {
-        JsonObject allLiDarWorkerTrackersLastFrames = lidarWorkerTrackersLastFrame == null ? new JsonObject()
-                : lidarWorkerTrackersLastFrame;
-        JsonObject lastLiDarWorkerTrackersFrames = allLiDarWorkerTrackersLastFrames.has("lastLiDarWorkerTrackersFrame")
-                ? allLiDarWorkerTrackersLastFrames.getAsJsonObject("lastLiDarWorkerTrackerFrame")
-                : new JsonObject();
-        JsonObject currLiDarWorkerTrackerLastFrame = new JsonObject();
-        JsonObject lastFrameJson = new JsonObject();
-        lastFrameJson.addProperty("id", lidar.getID());
-        lastFrameJson.addProperty("time", time);
-        ConcurrentLinkedQueue<TrackedObject> trackedObjects = lidar.getLastTrackedObject();
-        for (TrackedObject trackedObject : trackedObjects) {
-            // for each tracked object, make {id, time, description, coordinates}
-            JsonObject trackedObjectJson = new JsonObject();
-            trackedObjectJson.addProperty("id", trackedObject.getID());
-            trackedObjectJson.addProperty("time", trackedObject.getTime());
-            trackedObjectJson.addProperty("description", trackedObject.getDescription());
-            JsonArray trackedObjectPoints = new JsonArray();
+        // check if data already exists in the sf class
+        JsonObject currTrackedObject;
+        for (TrackedObject trackedObject : lidar.getLastTrackedObject()) {
+            currTrackedObject = new JsonObject();
+            currTrackedObject.addProperty("id", trackedObject.getID());
+            currTrackedObject.addProperty("time", time);
+            currTrackedObject.addProperty("description", trackedObject.getDescription());
+            JsonArray trackedObjectCoordinates = new JsonArray();
             for (CloudPoint cp : trackedObject.getPoints()) {
-                // for each coordinate, make {x, y}
                 JsonObject cpJson = new JsonObject();
                 cpJson.addProperty("x", cp.getX());
                 cpJson.addProperty("y", cp.getY());
-                trackedObjectPoints.add(cpJson);
+                trackedObjectCoordinates.add(cpJson);
             }
-            trackedObjectJson.add("coordinates", trackedObjectPoints);
-            lastFrameJson.add(trackedObject.getID(), trackedObjectJson);
+            currTrackedObject.add("coordinates", trackedObjectCoordinates);
+            lidarWorkerTrackersLastFrame.add("LiDarWorkerTracker " + lidar.getID(), currTrackedObject);
         }
-        // if needed, these will override the last frame of the lidar that is being
-        // updated
-        // other wise, they will just add the new data
-        currLiDarWorkerTrackerLastFrame.add("LiDarWorkerTracker" + lidar.getID(), lastFrameJson);
-        lastLiDarWorkerTrackersFrames.add("LiDarWorkerTracker" + lidar.getID(), currLiDarWorkerTrackerLastFrame);
-        allLiDarWorkerTrackersLastFrames.add("lastLiDarWorkerTrackersFrame", lastLiDarWorkerTrackersFrames);
-        lidarWorkerTrackersLastFrame = allLiDarWorkerTrackersLastFrames;
     }
 
     public void updatePoses(ConcurrentHashMap<Integer, Pose> poses) {
@@ -237,14 +225,15 @@ public class StatisticalFolder {
     public void createOutput() {
         checkIfOutputFileExists();
         JsonObject output = new JsonObject();
-        addGoodOutput(output);
+        createBaseOfOutput(output);
         if (errorMsg != null) {
             addErrorOutput(output);
         }
         writeOutputToFile(output);
     }
 
-    private void addGoodOutput(JsonObject output) {
+    private void createBaseOfOutput(JsonObject output) {
+        JsonObject statistics;
         if (errorMsg == null) {
             output.addProperty("systemRuntime", systemRuntime.get());
             output.addProperty("numDetectedObjects", numDetectedObjects.get());
@@ -255,28 +244,27 @@ public class StatisticalFolder {
                 landmarkJsonObject.add(landmark.get("id").getAsString(), landmark);
             }
             output.add("landMarks", landmarkJsonObject);
-        }
-    }
-
-    private void addErrorOutput(JsonObject output) {
-        JsonObject statistics = new JsonObject();
-        for (String key : output.keySet()) {
-            statistics.add(key, output.get(key));
-        }
-        if (errorMsg != null) {
+        } else {
+            statistics = new JsonObject();
+            statistics.addProperty("systemRuntime", systemRuntime.get());
+            statistics.addProperty("numDetectedObjects", numDetectedObjects.get());
+            statistics.addProperty("numTrackedObjects", numTrackedObjects.get());
+            statistics.addProperty("numLandmarks", numLandmarks.get());
             JsonObject landmarkJsonObject = new JsonObject();
-
             for (JsonObject landmark : landmarks.values()) {
                 landmarkJsonObject.add(landmark.get("id").getAsString(), landmark);
             }
             statistics.add("landMarks", landmarkJsonObject);
+            output.add("statistics", statistics);
         }
-        output.add("statistics", statistics);
+    }
+
+    private void addErrorOutput(JsonObject output) {
         output.addProperty("error", errorMsg);
         output.addProperty("faultySensor", faultySensor);
-        output.add("lastCamerasFrame", camerasLastFrame);
-        output.add("lastLiDarWorkerTrackersFrame", lidarWorkerTrackersLastFrame);
-        output.addProperty("poses", poses.toString());
+        output.add("lastCameraFrames", camerasLastFrame);
+        output.add("lastLiDarFrames", lidarWorkerTrackersLastFrame);
+        output.add("poses", prettyGson.toJsonTree(poses.values()));
     }
 
     private synchronized void writeOutputToFile(JsonObject output) {
@@ -287,5 +275,9 @@ public class StatisticalFolder {
         } catch (Exception e) {
             System.err.println("Failed to create the output file because of " + e.getMessage());
         }
+    }
+
+    public void decreaseCamNum() {
+        numTrackedObjects.decrementAndGet();
     }
 }

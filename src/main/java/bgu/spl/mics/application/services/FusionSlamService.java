@@ -56,16 +56,24 @@ public class FusionSlamService extends MicroService {
                                 + " terminated because all sensors are inactive, should updating landmarks?");
                 sendBroadcast(new ZeroCamSensBroadcast(fusionSlam.getNumberOfActiveSensors(),
                         fusionSlam.getNumberOfActiveCameras()));
-
                 terminate();
             }
         });
 
         subscribeBroadcast(CrashedBroadcast.class, (CrashedBroadcast crash) -> {
-            System.err.println("[CRASHED] - " + getName() + " crashed with error: " + crash.getErrorMsg());
-            sendBroadcast(new TerminatedBroadcast(getName()));
-            StatisticalFolder.getInstance().updateLandmarks(fusionSlam.getLandmarks());
-            terminate();
+            if (crash.getCrasher().contains("LiDarService")) {
+                fusionSlam.decreaseSensor();
+            } else if (crash.getCrasher().contains("CameraService")) {
+                fusionSlam.decreaseCameras();
+            }
+            if (fusionSlam.getNumberOfActiveSensors() == 0 || fusionSlam.getNumberOfActiveCameras() == 0) {
+                System.out.println(
+                        "[TERMINATED] - " + getName()
+                                + " terminated because all sensors are inactive, should updating landmarks?");
+                sendBroadcast(new ZeroCamSensBroadcast(fusionSlam.getNumberOfActiveSensors(),
+                        fusionSlam.getNumberOfActiveCameras()));
+                terminate();
+            }
         });
 
         subscribeEvent(TrackedObjectsEvent.class, event -> {

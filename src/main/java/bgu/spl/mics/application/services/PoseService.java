@@ -45,22 +45,26 @@ public class PoseService extends MicroService {
                 if (pose != null) {
                     PoseEvent poseEvent = new PoseEvent(getName(), pose);
                     Future<?> future = sendEvent(poseEvent);
-                    if (future.get() == null) {
-                        poseCrashBroadcast(currTick);
-                    }
+                    // if (future.get() == null) {
+                    // poseCrashBroadcast(currTick);
+                    // }
                 } else {
                     poseCrashBroadcast(currTick);
                 }
             } catch (IndexOutOfBoundsException e) {
                 System.err.println("[TICKBROADCAST - INVALID]" + "PoseService: Invalid tick " + e.getMessage());
             } catch (Exception e) {
-                System.err.println(
-                        "[TICKBROADCAST - CRITICAL ERROR]" + "PoseService: Error processing tick " + e.getMessage());
-                e.printStackTrace();
-                StatisticalFolder.getInstance().updatePoses(gpsimu.getPoses()); // should update a variable in the
-                                                                                // statistical folder instead
-                sendBroadcast(new CrashedBroadcast("PoseService crashed", getName()));
-                terminate();
+                // System.err.println(
+                // "[TICKBROADCAST - CRITICAL ERROR]" + "PoseService: Error processing tick " +
+                // e.getMessage());
+                // e.printStackTrace();
+                // StatisticalFolder.getInstance().updatePoses(gpsimu.getPoses()); // should
+                // update a variable in the
+                // // statistical folder instead
+                // sendBroadcast(new CrashedBroadcast("PoseService crashed", getName(),
+                // tick.getTick()));
+                // terminate();
+                poseCrashBroadcast(tick.getTick());
             }
         });
 
@@ -86,7 +90,7 @@ public class PoseService extends MicroService {
     }
 
     private void poseCrashBroadcast(int currTick) {
-        sendBroadcast(new CrashedBroadcast("PoseService crashed at tick " + currTick, getName()));
+        sendBroadcast(new CrashedBroadcast("PoseService crashed at tick " + currTick, getName(), currTick));
         gpsimu.setStatus(STATUS.ERROR);
         terminate();
     }

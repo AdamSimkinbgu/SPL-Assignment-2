@@ -100,10 +100,6 @@ public class LiDarWorkerTracker {
         return lastTrackedObjects;
     }
 
-    public void updateLastTrackedObjects(ConcurrentLinkedQueue<TrackedObject> trackedObjects) {
-        lastTrackedObjects = trackedObjects;
-    }
-
     public ConcurrentLinkedQueue<TrackedObject> handleDetectObject(DetectObjectsEvent event, int detectionTime) {
         ConcurrentLinkedQueue<TrackedObject> trackedObjects = new ConcurrentLinkedQueue<>();
 
@@ -144,5 +140,9 @@ public class LiDarWorkerTracker {
         updateLastTrackedObjects(trackedObjects);
 
         return trackedObjects;
+    }
+
+    public void updateLastTrackedObjects(ConcurrentLinkedQueue<TrackedObject> trackedObjects) {
+        lastTrackedObjects = trackedObjects;
     }
 }

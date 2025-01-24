@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
@@ -20,6 +21,7 @@ public class Camera {
     private int frequency;
     private STATUS status;
     private ConcurrentHashMap<Integer, StampedDetectedObjects> detectedObjects;
+    private ArrayList<DetectedObject> lastDetectedObjects;
     private int timeLimit;
     private String errorMsg;
 
@@ -30,6 +32,7 @@ public class Camera {
         this.status = STATUS.UP;
         this.detectedObjects = detectedObjects;
         this.timeLimit = timeLimit;
+        lastDetectedObjects = new ArrayList<>();
         this.errorMsg = null;
     }
 
@@ -38,6 +41,8 @@ public class Camera {
         this.frequency = frequency;
         this.status = STATUS.UP;
         this.detectedObjects = new ConcurrentHashMap<>();
+        this.lastDetectedObjects = new ArrayList<>();
+
         loadDetectedObjectsFromFilePath(filePath, cameraKey);
     }
 
@@ -116,5 +121,13 @@ public class Camera {
 
     public int getTimeLimit() {
         return timeLimit;
+    }
+
+    public void updateLastDetectedObjects(ArrayList<DetectedObject> detectedObjects) {
+        lastDetectedObjects = detectedObjects;
+    }
+
+    public ArrayList<DetectedObject> getLastDetectedObjects() {
+        return lastDetectedObjects;
     }
 }

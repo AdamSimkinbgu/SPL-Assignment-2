@@ -177,12 +177,11 @@ public class GurionRockRunner {
 
             // Count active cameras and sensors
             int numActiveCameras = cameraServices.size();
-            int numActiveLiDars = lidarServices.size();
-            int numActiveSensors = numActiveCameras + numActiveLiDars;
+            int numActiveSensors = lidarServices.size();
 
             // Update FusionSlam with active sensors and cameras
             fusionSlam.setNumberOfActiveCameras(numActiveCameras);
-            fusionSlam.setNumberOfActiveSensors(numActiveSensors + 1);
+            fusionSlam.setNumberOfActiveSensors(numActiveSensors);
 
             // Print debug information
             System.out.println("Active Cameras: " + numActiveCameras);

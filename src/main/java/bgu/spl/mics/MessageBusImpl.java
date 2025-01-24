@@ -76,9 +76,12 @@ public class MessageBusImpl implements MessageBus {
 	@Override
 	public void sendBroadcast(Broadcast b) {
 		ConcurrentLinkedQueue<MicroService> broadcastQueue = broadcasthashmap.get(b.getClass());
+		String bClass = broadcastQueue.getClass().toString();
+		System.out.println("{BROADCASTQUEUE PRINT}: " + bClass + " queue is: " + broadcastQueue);
 		if (broadcastQueue != null) {
 			synchronized (broadcastQueue) {
 				for (MicroService subscribed : broadcastQueue) {
+
 					ConcurrentLinkedQueue<Message> messageQueue = microhashmap.get(subscribed);
 					if (messageQueue != null) {
 						synchronized (messageQueue) {

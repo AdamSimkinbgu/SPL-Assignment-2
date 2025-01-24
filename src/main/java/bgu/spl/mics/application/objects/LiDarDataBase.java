@@ -38,7 +38,7 @@ public class LiDarDataBase {
 
     private LiDarDataBase() {
         this.stampedCloudPoints = loadCloudPoints(filePath);
-        System.out.println("CloudPoints: " + stampedCloudPoints);
+        // System.out.println("CloudPoints: " + stampedCloudPoints);
     }
 
     public void setFilePath(String fp) {
