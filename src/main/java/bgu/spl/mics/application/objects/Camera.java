@@ -24,6 +24,7 @@ public class Camera {
     private ArrayList<DetectedObject> lastDetectedObjects;
     private int timeLimit;
     private String errorMsg;
+    // private StampedDetectedObjects lastDetectedObjects;
 
     public Camera(int id, int frequency, ConcurrentHashMap<Integer, StampedDetectedObjects> detectedObjects,
             int timeLimit) {
@@ -32,8 +33,9 @@ public class Camera {
         this.status = STATUS.UP;
         this.detectedObjects = detectedObjects;
         this.timeLimit = timeLimit;
-        lastDetectedObjects = new ArrayList<>();
+        this.lastDetectedObjects = new ArrayList<>();
         this.errorMsg = null;
+        this.lastDetectedObjects = new ArrayList<>();
     }
 
     public Camera(int id, int frequency, String filePath, String cameraKey) {
@@ -128,6 +130,7 @@ public class Camera {
     }
 
     public ArrayList<DetectedObject> getLastDetectedObjects() {
+        // public StampedDetectedObjects getLastDetectedObjects() {
         return lastDetectedObjects;
     }
 }

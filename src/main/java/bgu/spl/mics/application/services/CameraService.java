@@ -68,7 +68,6 @@ public class CameraService extends MicroService {
             System.out.println("[TICKBROADCAST RECEIVED] - " + getName() + " got tick " + tick.getTick());
             int currTick = tick.getTick();
             try {
-                int dueTime = currTick + camera.getFrequency();
                 if (camera.getStatus() == STATUS.UP) {
                     System.out.println(
                             "[TICKBROADCAST - DETECTING] - " + getName() + " detecting objects at tick " + currTick);
@@ -77,12 +76,14 @@ public class CameraService extends MicroService {
                         sendCrashCameraBroadcast(currTick);
                     } else {
                         if (detectedObjects != null) {
-                            DetectObjectsEvent newEvent = new DetectObjectsEvent(getName(), dueTime, detectedObjects);
+                            int doneDetectedTime = detectedObjects.getTime() + camera.getFrequency();
+                            DetectObjectsEvent newEvent = new DetectObjectsEvent(getName(), doneDetectedTime,
+                                    detectedObjects);
                             eventQ.add(newEvent);
                         }
                         while (!eventQ.isEmpty()) {
                             DetectObjectsEvent event = eventQ.peek();
-                            if (event.getSentTime() > currTick)
+                            if (event.getDetectedTime() > currTick)
                                 break; // no events are due yet
                             else {
                                 event = eventQ.poll();
@@ -92,6 +93,13 @@ public class CameraService extends MicroService {
                                 // }
                                 // make the detected objects available for the updateLastDetectedObjects method
                                 updateLastCamFrame(detectedObjects, currTick);
+                                // if (future.get(currTick + camera.getFrequency(), TimeUnit.SECONDS) == null) {
+                                // sendCrashCameraBroadcast(currTick);
+                                // }
+
+                                StatisticalFolder.getInstance().addNumDetectedObjects(
+                                        event.getStampedDetectedObjects().getDetectedObjects().size());
+
                             }
                         }
                     }
