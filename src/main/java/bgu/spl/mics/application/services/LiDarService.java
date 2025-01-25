@@ -68,17 +68,6 @@ public class LiDarService extends MicroService {
                         // TimeUnit.SECONDS) == null)
                         // crashLiDarBroadcast(currTick);
 
-<<<<<<< HEAD
-                            complete(trackedObjectsEvent.getMyEvent(), true);
-                            lidarWorkerTracker.updateTrackedObjectsByTime(trackedObjectsEvent.getTrackedObjects());
-                            // lidarWorkerTracker.updateLastTrackedObjects(trackedObjectsEvent.getTrackedObjects());
-                            StatisticalFolder.getInstance().updatelastLiDarWorkerTrackerFrame(currTick,
-                                    lidarWorkerTracker);
-                            StatisticalFolder.getInstance()
-                                    .addNumTrackedObjects(trackedObjectsEvent.getTrackedObjects().size());
-
-                        }
-=======
                         complete(trackedObjectsEvent.getMyEvent(), true);
                         lidarWorkerTracker.updateLastTrackedObjects(trackedObjectsEvent.getTrackedObjects());
                         StatisticalFolder.getInstance().updatelastLiDarWorkerTrackerFrame(currTick,
@@ -88,7 +77,6 @@ public class LiDarService extends MicroService {
                         // crashLiDarBroadcast(currTick);
                         StatisticalFolder.getInstance()
                                 .addNumTrackedObjects(trackedObjectsEvent.getTrackedObjects().size());
->>>>>>> dev
                     }
                     if (eventsTODO.isEmpty() && lidarWorkerTracker.getStatus().equals(STATUS.DOWN)) {
                         terminateLiDarBroadcast();
@@ -121,7 +109,6 @@ public class LiDarService extends MicroService {
         subscribeBroadcast(CrashedBroadcast.class, (CrashedBroadcast crashed) -> {
             System.out.println("[CRASHEDBROADCAST RECEIVED] - " + getName() + " got terminated broadcast from "
                     + crashed.getCrasher());
-<<<<<<< HEAD
             // lidarWorkerTracker.updateLastTrackedObjects(lidarWorkerTracker.getLastTrackedObject());
             lidarWorkerTracker.setStatus(STATUS.DOWN);
             sendBroadcast(new TerminatedBroadcast(getName()));
@@ -130,13 +117,11 @@ public class LiDarService extends MicroService {
                     lidarWorkerTracker);
             StatisticalFolder.getInstance()
                     .addNumTrackedObjects(lidarWorkerTracker.getTrackedObjectsByTime(crashed.getTimeCrashed()).size());
-=======
-            lidarWorkerTracker.updateLastTrackedObjects(lidarWorkerTracker.getLastTrackedObject());
+            // lidarWorkerTracker.updateLastTrackedObjects(lidarWorkerTracker.getLastTrackedObject());
             // i think we should update here statistics and last frames also
-            lidarWorkerTracker.setStatus(STATUS.DOWN);
-            sendBroadcast(new TerminatedBroadcast(getName()));
-            terminate();
->>>>>>> dev
+            // lidarWorkerTracker.setStatus(STATUS.DOWN);
+            // sendBroadcast(new TerminatedBroadcast(getName()));
+            // terminate();
         });
 
         subscribeEvent(DetectObjectsEvent.class, event -> { // here we send TrackedObjectEvents
@@ -147,62 +132,6 @@ public class LiDarService extends MicroService {
                 terminateLiDarBroadcast();
             } else {
                 ConcurrentLinkedQueue<TrackedObject> trackedObjects = lidarWorkerTracker
-<<<<<<< HEAD
-                        .processDetectedObjects(event, currTick);
-                if (lidarWorkerTracker.getStatus().equals(STATUS.ERROR)) {
-                    crashLiDarBroadcast(currTick);
-                    StatisticalFolder.getInstance().updatelastLiDarWorkerTrackerFrame(currTick,
-                            lidarWorkerTracker);
-                } else {
-                    // create TrackedObjectsEvent with previous calculated tracked objects
-                    TrackedObjectsEvent trackedObjectsEvent = new TrackedObjectsEvent(trackedObjects, currTick, dueTick,
-                            event);
-                    // checks if detection tick + lidar frequency is less than current tick so we
-                    // can send event
-                    if (dueTick <= currTick) {
-                        // update last tracked objects for a future error
-                        Future<?> future = sendEvent(trackedObjectsEvent);
-
-                        System.out.println("[TRACKEDOBJECTSEVENT - SENT] - " + getName()
-                                + " sent TrackedObjectsEvent at tick " + dueTick);
-                        complete(event, true);
-                        // lidarWorkerTracker.updateLastTrackedObjects(trackedObjects);
-
-                        StatisticalFolder.getInstance().addNumTrackedObjects(trackedObjects.size());
-                        StatisticalFolder.getInstance().updatelastLiDarWorkerTrackerFrame(currTick,
-                                lidarWorkerTracker);
-
-                    } else {
-                        synchronized (eventsTODO) {
-                            eventsTODO.add(trackedObjectsEvent);
-                            // sort the events by detection time
-                            List<TrackedObjectsEvent> sortedList = eventsTODO.stream()
-                                    .sorted(Comparator.comparingInt(TrackedObjectsEvent::getDetectionTime))
-                                    .collect(Collectors.toList());
-                            eventsTODO.clear();
-                            eventsTODO.addAll(sortedList);
-                        }
-                    } // current tick is less than due tick
-                }
-                if (eventsTODO.isEmpty() && lidarWorkerTracker.getStatus().equals(STATUS.DOWN)) {
-
-                    terminateLiDarBroadcast();
-                }
-            } else
-
-            { // if lidar is down
-              // System.out.println("[DETECTOBJECTSEVENT - ERROR] - " + getName() + " is
-              // down");
-              // sendBroadcast(new CrashedBroadcast("LidarWorker " +
-              // lidarWorkerTracker.getID() + " got an error",
-              // "in LiDarService " + getName()));
-              // StatisticalFolder.getInstance().updateError(
-              // "LidarWorker " + lidarWorkerTracker.getID() + " got an error",
-              // "LiDarService " + getName());
-              // terminate();
-                System.out.println("[DETECTOBJECTSEVENT - ERROR] - " + getName() + " is down");
-                crashLiDarBroadcast(currTick);
-=======
                         .calculateTrackedObjects(event.getStampedDetectedObjects());
                 if (lidarWorkerTracker.getStatus() == STATUS.ERROR) {
                     System.out.println("[ERROR - CRASHING] - " + getName() + " terminating with error: "
@@ -213,7 +142,6 @@ public class LiDarService extends MicroService {
                             event.getDetectedTime() + lidarWorkerTracker.getFrequency(), event));
                     complete(event, true);
                 }
->>>>>>> dev
             }
 
             // int currTick = event.getDetectedTime();
