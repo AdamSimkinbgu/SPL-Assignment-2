@@ -55,7 +55,7 @@ public class GurionRockRunner {
         // }
 
         // Path to the configuration file provided as the first argument
-        String configPath = "/Users/adamsimkin/Documents/GitHub/SPL-Assignment-2/example_input_2/configuration_file.json";
+        String configPath = "/Users/itaymesika/Desktop/SPL-Assignmentt-2/example_input_2/configuration_file.json";
         File configFile = new File(configPath);
         String configDirectory = configFile.getParent(); // Extract the directory containing the config file
         try (FileReader reader = new FileReader(configPath)) {

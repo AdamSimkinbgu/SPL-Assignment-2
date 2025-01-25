@@ -5,12 +5,12 @@ import bgu.spl.mics.application.objects.StampedDetectedObjects;
 
 public class DetectObjectsEvent implements Event<Boolean> {
    private String detectorName;
-   private int sentTime;
+   private int detectedTime;
    private StampedDetectedObjects stampedDetectedObjects;
 
-   public DetectObjectsEvent(String detectorName, int sentTime, StampedDetectedObjects stampedDetectedObjects) {
+   public DetectObjectsEvent(String detectorName, int detectedTime, StampedDetectedObjects stampedDetectedObjects) {
       this.detectorName = detectorName;
-      this.sentTime = sentTime;
+      this.detectedTime = detectedTime;
       this.stampedDetectedObjects = stampedDetectedObjects;
    }
 
@@ -18,8 +18,8 @@ public class DetectObjectsEvent implements Event<Boolean> {
       return detectorName;
    }
 
-   public int getSentTime() {
-      return sentTime;
+   public int getDetectedTime() {
+      return detectedTime;
    }
 
    public StampedDetectedObjects getStampedDetectedObjects() {
