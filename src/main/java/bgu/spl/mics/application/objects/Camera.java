@@ -130,4 +130,14 @@ public class Camera {
     public ArrayList<DetectedObject> getLastDetectedObjects() {
         return lastDetectedObjects;
     }
+
+    public ArrayList<DetectedObject> getDetectedObjectsListByTime(int time) {
+        ArrayList<DetectedObject> detectedObjectsList = new ArrayList<>();
+        for (StampedDetectedObjects stampedDetectedObjects : detectedObjects.values()) {
+            if (stampedDetectedObjects.getTime() == time) {
+                detectedObjectsList.addAll(stampedDetectedObjects.getDetectedObjects());
+            }
+        }
+        return detectedObjectsList;
+    }
 }

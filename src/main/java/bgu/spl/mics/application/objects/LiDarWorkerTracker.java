@@ -2,6 +2,7 @@ package bgu.spl.mics.application.objects;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import bgu.spl.mics.application.Messages.DetectObjectsEvent;
@@ -17,6 +18,7 @@ public class LiDarWorkerTracker {
     private int frequency; // the frequency of the LiDAR worker
     private STATUS status;
     private ConcurrentLinkedQueue<TrackedObject> lastTrackedObjects; // list of the last tracked objects
+    private volatile ConcurrentHashMap<Integer, List<TrackedObject>> trackedObjects; // list of tracked objects
     private LiDarDataBase lidarDataBase; // the LiDAR database
     private String errorMsg;
 
@@ -26,6 +28,7 @@ public class LiDarWorkerTracker {
         this.status = STATUS.UP;
         this.lastTrackedObjects = new ConcurrentLinkedQueue<TrackedObject>();
         this.lidarDataBase = LiDarDataBase.getInstance(FilePath);
+        this.trackedObjects = new ConcurrentHashMap<>();
         this.errorMsg = null;
     }
 
@@ -66,6 +69,7 @@ public class LiDarWorkerTracker {
                 }
             }
         }
+        trackedObjects.put(detectedTime, new ArrayList<>(afterCalculateObjects));
         return afterCalculateObjects;
     }
 
@@ -100,49 +104,72 @@ public class LiDarWorkerTracker {
         return lastTrackedObjects;
     }
 
-    public ConcurrentLinkedQueue<TrackedObject> handleDetectObject(DetectObjectsEvent event, int detectionTime) {
+    public ConcurrentLinkedQueue<TrackedObject> processDetectedObjects(DetectObjectsEvent event, int detectionTime) {
         ConcurrentLinkedQueue<TrackedObject> trackedObjects = new ConcurrentLinkedQueue<>();
 
-        // StampedDetectedObjects from the camera event
+        // Retrieve detected objects from the event
         StampedDetectedObjects stampedObjects = event.getStampedDetectedObjects();
 
-        // For each detected object in the camera’s list:
-        for (DetectedObject obj : stampedObjects.getDetectedObjects()) {
-            String objectId = obj.getId();
-            String objectDescription = obj.getDescription();
+        // Check for errors before processing
+        checkForError(detectionTime);
 
-            // 1) Retrieve the matching cloud points from the LiDarDataBase
-            // for the same time + object ID
-            StampedCloudPoints stampedCP = this.lidarDataBase.getStampedCloudPoints(detectionTime, objectId);
-            if (stampedCP == null) {
-                // Possibly the LiDAR DB had no entry for that (time, objectId)
-                continue;
+        if (getStatus() == STATUS.UP) {
+            for (DetectedObject obj : stampedObjects.getDetectedObjects()) {
+                String objectId = obj.getId();
+                String objectDescription = obj.getDescription();
+
+                // Retrieve cloud points for the detected object
+                StampedCloudPoints stampedCP = this.lidarDataBase.getStampedCloudPoints(detectionTime, objectId);
+                if (stampedCP == null) {
+                    continue; // Skip if no cloud points are found
+                }
+
+                // Convert raw cloud points to CloudPoint objects
+                ArrayList<CloudPoint> coordinates = new ArrayList<>();
+                for (List<Double> point : stampedCP.getPoints()) {
+                    Double x = point.get(0);
+                    Double y = point.get(1);
+                    coordinates.add(new CloudPoint(x, y));
+                }
+
+                // Create and add the TrackedObject to the queue
+                TrackedObject tracked = new TrackedObject(objectId, detectionTime, objectDescription, coordinates);
+                trackedObjects.add(tracked);
             }
-
-            // 2) Convert the raw lists into CloudPoint objects
-            ArrayList<CloudPoint> coordinates = new ArrayList<>();
-            for (List<Double> listCP : stampedCP.getPoints()) {
-                Double x = listCP.get(0);
-                Double y = listCP.get(1);
-                // Possibly ignore z if you only do 2D?
-                coordinates.add(new CloudPoint(x, y));
-            }
-
-            // 3) Create a new TrackedObject and add it to the queue
-            TrackedObject tracked = new TrackedObject(objectId, detectionTime, objectDescription, coordinates);
-            trackedObjects.add(tracked);
         }
 
-        // 4) Update stats (like “number of tracked objects”)
-        // StatisticalFolder.getInstance().increaseNumTrackedObjects(trackedObjects.size());
-
-        // 5) Optionally store these as “lastTrackedObjects”
+        // Update the last tracked objects
         updateLastTrackedObjects(trackedObjects);
+
+        // Update StatisticalFolder with the new tracked objects
+        StatisticalFolder.getInstance().updatelastLiDarWorkerTrackerFrame(detectionTime, this);
 
         return trackedObjects;
     }
 
-    public void updateLastTrackedObjects(ConcurrentLinkedQueue<TrackedObject> trackedObjects) {
-        lastTrackedObjects = trackedObjects;
+    public void updateLastTrackedObjects(ConcurrentLinkedQueue<TrackedObject> incomingTrackedObjects) {
+        lastTrackedObjects = incomingTrackedObjects;
+        if (incomingTrackedObjects.isEmpty()) {
+            return;
+        }
+        ArrayList<TrackedObject> trackedObjectsList = incomingTrackedObjects.stream().collect(ArrayList::new,
+                ArrayList::add,
+                ArrayList::addAll);
+        trackedObjects.put(trackedObjectsList.get(0).getTime(), trackedObjectsList);
+    }
+
+    public List<TrackedObject> getTrackedObjectsByTime(int time) {
+        if (trackedObjects.containsKey(time)) {
+            return trackedObjects.get(time);
+        }
+        return new ArrayList<>();
+    }
+
+    public void updateTrackedObjectsByTime(ConcurrentLinkedQueue<TrackedObject> trackedObjects2) {
+        if (trackedObjects2.isEmpty()) {
+            return;
+        }
+        List<TrackedObject> trackedObjectsList = new ArrayList<>(trackedObjects2);
+        trackedObjects.put(trackedObjectsList.get(0).getTime(), trackedObjectsList);
     }
 }

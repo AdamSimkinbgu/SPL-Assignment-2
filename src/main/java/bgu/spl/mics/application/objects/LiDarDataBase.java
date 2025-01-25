@@ -54,6 +54,10 @@ public class LiDarDataBase {
             java.lang.reflect.Type type = new TypeToken<List<StampedCloudPoints>>() {
             }.getType();
             List<StampedCloudPoints> stampedCloudPoints = gson.fromJson(reader, type);
+            // int counter = 0;
+            // for (StampedCloudPoints stampedCP : stampedCloudPoints) {
+            // System.out.println("CloudPoint number " + ++counter + ": " + stampedCP);
+            // }
             return stampedCloudPoints;
         } catch (IOException e) {
             System.err.println("Failed to load LiDAR data from file: " + filePath + ". Error: " + e.getMessage());

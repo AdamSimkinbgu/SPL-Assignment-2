@@ -75,22 +75,5 @@ public class TimeService extends MicroService {
         System.out.println("[INITIALIZING] - " + getName() + " started broadcasting ticks every " + sleepTime + "ms, "
                 + TicksLifeSpan + " ticks total, starting tick " + currentTick);
         sendBroadcast(new TickBroadcast(currentTick));
-        // do {
-        // try {
-        // System.out.println("[TICKBROADCAST - SENT] - " + getName() + " sent tick " +
-        // currentTick);
-        // sendBroadcast(new TickBroadcast(currentTick));
-        // Thread.sleep(sleepTime);
-        // currentTick++;
-        // StatisticalFolder.getInstance().increaseSystemRuntime();
-        // } catch (InterruptedException e) {
-        // System.out.println("[INTERRUPTED] - " + "TimeService was interrupted at tick
-        // " + currentTick
-        // + " with error: " + e.getMessage() + ", terminating");
-        // break;
-        // }
-        // } while (currentTick <= TicksLifeSpan && sf.getSystemIsDone() == false);
-        // sendBroadcast(new TerminatedBroadcast(getName()));
-        // terminate();
     }
 }

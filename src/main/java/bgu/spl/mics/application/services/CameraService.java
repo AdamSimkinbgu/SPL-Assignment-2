@@ -1,7 +1,6 @@
 package bgu.spl.mics.application.services;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
@@ -66,6 +65,9 @@ public class CameraService extends MicroService {
         System.out.println("[INITIALIZING] - " + getName() + " started");
         subscribeBroadcast(TickBroadcast.class, tick -> {
             System.out.println("[TICKBROADCAST RECEIVED] - " + getName() + " got tick " + tick.getTick());
+            if (StatisticalFolder.getInstance().isSystemDown()) {
+                return;
+            }
             int currTick = tick.getTick();
             try {
                 int dueTime = currTick + camera.getFrequency();

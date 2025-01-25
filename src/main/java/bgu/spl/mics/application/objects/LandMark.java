@@ -57,4 +57,8 @@ public class LandMark {
     public void setCoordinates(ConcurrentLinkedQueue<CloudPoint> mergedPoints) {
         points = mergedPoints;
     }
+
+    public void addCoordinates(ConcurrentLinkedQueue<CloudPoint> convertedIntegratedPoints) {
+        points.addAll(convertedIntegratedPoints);
+    }
 }
