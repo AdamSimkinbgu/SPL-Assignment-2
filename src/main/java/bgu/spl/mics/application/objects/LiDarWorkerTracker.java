@@ -22,11 +22,12 @@ public class LiDarWorkerTracker {
     private LiDarDataBase lidarDataBase; // the LiDAR database
     private String errorMsg;
 
+
     public LiDarWorkerTracker(int id, int frequency, String FilePath) {
         this.id = id;
         this.frequency = frequency;
         this.status = STATUS.UP;
-        this.lastTrackedObjects = new ConcurrentLinkedQueue<TrackedObject>();
+        this.lastTrackedObjects = new ConcurrentLinkedQueue<>();
         this.lidarDataBase = LiDarDataBase.getInstance(FilePath);
         this.trackedObjects = new ConcurrentHashMap<>();
         this.errorMsg = null;
@@ -81,7 +82,7 @@ public class LiDarWorkerTracker {
             if (stampedCloudPoint.getTime() == detectedTime) {
                 if (stampedCloudPoint.getID().equals("ERROR")) {
                     setStatus(STATUS.ERROR);
-                    errorMsg = "Error in detected objects at time " + detectedTime;
+                    setErrorMsg("Error in detected objects at time " + detectedTime);
                 }
             }
         }
