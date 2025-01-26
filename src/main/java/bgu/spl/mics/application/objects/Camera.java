@@ -24,14 +24,13 @@ public class Camera {
     private String errorMsg;
     private StampedDetectedObjects lastDetectedObjects;
 
-    public Camera(int id, int frequency, ConcurrentHashMap<Integer, StampedDetectedObjects> detectedObjects, int timeLimit, StampedDetectedObjects lastDetectedObjects) {
+    public Camera(int id, int frequency, ConcurrentHashMap<Integer, StampedDetectedObjects> detectedObjects, int timeLimit) {
         this.id = id;
         this.frequency = frequency;
         this.status = STATUS.UP;
         this.detectedObjects = detectedObjects;
         this.timeLimit = timeLimit;
         this.errorMsg = null;
-        this.lastDetectedObjects = null;
     }
 
     public Camera(int id, int frequency, String filePath, String cameraKey) {
