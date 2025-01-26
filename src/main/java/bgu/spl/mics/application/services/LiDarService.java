@@ -22,7 +22,9 @@ import java.util.concurrent.TimeUnit;
  */
 public class LiDarService extends MicroService {
     private LiDarWorkerTracker lidarWorkerTracker;
-    Queue<TrackedObjectsEvent> eventsTODO;
+    PriorityQueue<TrackedObjectsEvent> eventsTODO;
+    int currTick;
+    boolean canTerminate;
 
     /**
      * Constructor for LiDarService.
@@ -34,6 +36,8 @@ public class LiDarService extends MicroService {
         super("LiDarService" + lidarWorkerTracker.getID());
         this.lidarWorkerTracker = lidarWorkerTracker;
         this.eventsTODO = new PriorityQueue<>(Comparator.comparingLong(TrackedObjectsEvent::getDetectionTime));
+        this.currTick = 1;
+        this.canTerminate = false;
     }
 
     /**
@@ -54,21 +58,19 @@ public class LiDarService extends MicroService {
         System.out.println("[INITIALIZING] - " + getName() + " started");
         subscribeBroadcast(TickBroadcast.class, (TickBroadcast tick) -> {
             try {
+                currTick++;
                 System.out.println("[TICKBROADCAST RECEIVED] - " + getName() + " got tick " + tick.getTick());
-                int currTick = tick.getTick();
                 if (lidarWorkerTracker.getStatus() == STATUS.UP) {
                     while (!eventsTODO.isEmpty() && eventsTODO.peek().getDetectionTime() <= currTick) {
-                            TrackedObjectsEvent trackedObjectsEvent = eventsTODO.poll();
-                            Future<?> future = sendEvent(trackedObjectsEvent);
+                        TrackedObjectsEvent trackedObjectsEvent = eventsTODO.poll();
+                        Future<?> future = sendEvent(trackedObjectsEvent);
 //                            if (future.get(currTick + lidarWorkerTracker.getFrequency(), TimeUnit.SECONDS) == null)
 //                                crashLiDarBroadcast(currTick);
-                            StatisticalFolder.getInstance()
-                                    .addNumTrackedObjects(trackedObjectsEvent.getTrackedObjects().size());
+                        StatisticalFolder.getInstance()
+                                .addNumTrackedObjects(trackedObjectsEvent.getTrackedObjects().size());
                     }
-                    if (eventsTODO.isEmpty() && lidarWorkerTracker.getStatus().equals(STATUS.DOWN)) {
+                    if (eventsTODO.isEmpty() && canTerminate) {
                         terminateLiDarBroadcast();
-                        StatisticalFolder.getInstance().setSystemIsDone(true);
-                        StatisticalFolder.getInstance().setLastWorkTick(currTick);
                     }
                 }
                 if (lidarWorkerTracker.getStatus() == STATUS.ERROR) {
@@ -85,20 +87,26 @@ public class LiDarService extends MicroService {
         });
 
         subscribeBroadcast(TerminatedBroadcast.class, (TerminatedBroadcast terminated) -> {
-            System.out.println("[TERMINATEDBROADCAST RECEIVED] - " + getName() + " got terminated broadcast from "
-                    + terminated.getTerminatorName());
-            lidarWorkerTracker.setStatus(STATUS.DOWN);
-            sendBroadcast(new TerminatedBroadcast(getName()));
-            terminate();
-
+            if (terminated.getTerminatorName().equals("TimeService")) {
+                System.out.println("[TERMINATEDBROADCAST RECEIVED] - " + getName() + " got terminated broadcast from "
+                        + terminated.getTerminatorName());
+                lidarWorkerTracker.setStatus(STATUS.DOWN);
+                sendBroadcast(new TerminatedBroadcast(getName()));
+                terminate();
+            }
         });
 
         subscribeBroadcast(CrashedBroadcast.class, (CrashedBroadcast crashed) -> {
             System.out.println("[CRASHEDBROADCAST RECEIVED] - " + getName() + " got terminated broadcast from "
                     + crashed.getCrasher());
             // i think we should update here statistics and last frames also
+            checkIfUpdateBeforeCrash(); // check if we need to update before crash for last frames
+            StatisticalFolder.getInstance().updatelastLiDarWorkerTrackerFrame(currTick, lidarWorkerTracker);
+            StatisticalFolder.getInstance().updateError("LidarWorker " + lidarWorkerTracker.getID(), lidarWorkerTracker.getErrorMsg());
+            if (!StatisticalFolder.getInstance().getSystemIsDone()) {
+                StatisticalFolder.getInstance().setSystemIsDone(true);
+            }
             lidarWorkerTracker.setStatus(STATUS.DOWN);
-            sendBroadcast(new TerminatedBroadcast(getName()));
             terminate();
         });
 
@@ -108,19 +116,65 @@ public class LiDarService extends MicroService {
             if (lidarWorkerTracker.getStatus() == STATUS.DOWN) {
                 System.out.println("[ERROR - LiadrWorker] - " + getName() + " is down");
                 terminateLiDarBroadcast();
-            }
-            else{
-                ConcurrentLinkedQueue<TrackedObject> trackedObjects =lidarWorkerTracker.calculateTrackedObjects(event.getStampedDetectedObjects());
-                if (lidarWorkerTracker.getStatus() == STATUS.ERROR){
+            } else {
+                ConcurrentLinkedQueue<TrackedObject> trackedObjects = lidarWorkerTracker.calculateTrackedObjects(event.getStampedDetectedObjects());
+                if (lidarWorkerTracker.getStatus() == STATUS.ERROR) {
                     System.out.println("[ERROR - CRASHING] - " + getName() + " terminating with error: "
                             + lidarWorkerTracker.getErrorMsg());
                     crashLiDarBroadcast(event.getDetectedTime());
-                }
-                else{
-                    eventsTODO.add(new TrackedObjectsEvent(trackedObjects, event.getDetectedTime(), event.getDetectedTime() + lidarWorkerTracker.getFrequency(), event));
+                } else {
+                    if (event.getDetectedTime() + lidarWorkerTracker.getFrequency() <= currTick) {
+                        Future<?> future = sendEvent(new TrackedObjectsEvent(trackedObjects, event.getDetectedTime(), event.getDetectedTime() + lidarWorkerTracker.getFrequency(), event));
+                    } else {
+                        eventsTODO.add(new TrackedObjectsEvent(trackedObjects, event.getDetectedTime(), event.getDetectedTime() + lidarWorkerTracker.getFrequency(), event));
+                    }
                     complete(event, true);
                 }
             }
+        });
+
+        subscribeBroadcast(ZeroCamSensBroadcast.class, (ZeroCamSensBroadcast zero) -> {
+            System.out.println("[ZEROCAMSENSBROADCAST RECEIVED] - " + getName() + " got ZeroCamSensBroadcast");
+            if (zero.getActiveCameras() == 0) {
+                System.out.println("[ZEROCAMSENSBROADCAST - TERMINATING] - " + getName() + " terminating because "
+                        + "all cameras are inactive");
+                canTerminate = true;
+            } else if (zero.getActiveSensors() == 0) {
+                System.out.println("[ZEROCAMSENSBROADCAST - TERMINATING] - " + getName() + " terminating because "
+                        + "all sensors are inactive");
+                canTerminate = true;
+            }
+            lidarWorkerTracker.setStatus(STATUS.DOWN);
+        });
+    }
+
+    private void terminateLiDarBroadcast() {
+        sendBroadcast(new TerminatedBroadcast(getName()));
+        lidarWorkerTracker.setStatus(STATUS.DOWN);
+        StatisticalFolder.getInstance().setSystemIsDone(true);
+        StatisticalFolder.getInstance().setLastWorkTick(currTick);
+        terminate();
+    }
+
+    private void crashLiDarBroadcast(int currTick) {
+        sendBroadcast(new CrashedBroadcast("LidarWorker " + lidarWorkerTracker.getID() + " got an error",
+                "LiDarService " + getName()));
+//      maybe add handle crash method from the tracker
+        lidarWorkerTracker.setStatus(STATUS.ERROR);
+        checkIfUpdateBeforeCrash(); // this is the handle crash method
+        StatisticalFolder.getInstance().updatelastLiDarWorkerTrackerFrame(currTick, lidarWorkerTracker);
+        StatisticalFolder.getInstance().updateError("LidarWorker " + lidarWorkerTracker.getID(), lidarWorkerTracker.getErrorMsg());
+        if (!StatisticalFolder.getInstance().getSystemIsDone()) {
+            StatisticalFolder.getInstance().setSystemIsDone(true);
+        }
+        terminate();
+    }
+
+    private void checkIfUpdateBeforeCrash() {
+        lidarWorkerTracker.workerCheckBeforeCrash(eventsTODO);
+    }
+}
+
 
 //            int currTick = event.getDetectedTime();
 //            int dueTick = currTick + lidarWorkerTracker.getFrequency();
@@ -186,37 +240,3 @@ public class LiDarService extends MicroService {
 //                        "LiDarService " + getName());
 //                terminate();
 //            }
-        });
-
-        subscribeBroadcast(ZeroCamSensBroadcast.class, (ZeroCamSensBroadcast zero) -> {
-            System.out.println("[ZEROCAMSENSBROADCAST RECEIVED] - " + getName() + " got ZeroCamSensBroadcast");
-            if (zero.getActiveCameras() == 0) {
-                System.out.println("[ZEROCAMSENSBROADCAST - TERMINATING] - " + getName() + " terminating because "
-                        + "all cameras are inactive");
-            } else if (zero.getActiveSensors() == 0) {
-                System.out.println("[ZEROCAMSENSBROADCAST - TERMINATING] - " + getName() + " terminating because "
-                        + "all sensors are inactive");
-            }
-            sendBroadcast(new TerminatedBroadcast(getName()));
-            lidarWorkerTracker.setStatus(STATUS.DOWN);
-             terminate();
-        });
-    }
-
-    private void terminateLiDarBroadcast() {
-        sendBroadcast(new TerminatedBroadcast(getName()));
-        lidarWorkerTracker.setStatus(STATUS.DOWN);
-        terminate();
-    }
-
-    private void crashLiDarBroadcast(int currTick) {
-        sendBroadcast(new CrashedBroadcast("LidarWorker " + lidarWorkerTracker.getID() + " got an error",
-                "LiDarService " + getName()));
-//      maybe add handle crash method from the tracker
-        lidarWorkerTracker.setStatus(STATUS.ERROR);
-        StatisticalFolder.getInstance().updatelastLiDarWorkerTrackerFrame(currTick, lidarWorkerTracker);
-        StatisticalFolder.getInstance().updateError("LidarWorker " + lidarWorkerTracker.getID(),
-                lidarWorkerTracker.getErrorMsg());
-        terminate();
-    }
-}

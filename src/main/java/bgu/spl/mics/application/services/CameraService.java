@@ -1,7 +1,6 @@
 package bgu.spl.mics.application.services;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
 
 import bgu.spl.mics.Future;
 import bgu.spl.mics.MicroService;
@@ -24,7 +23,10 @@ import bgu.spl.mics.application.objects.StatisticalFolder;
  */
 public class CameraService extends MicroService {
     private Camera camera;
-    private ConcurrentLinkedQueue<DetectObjectsEvent> eventQ;
+    private ConcurrentLinkedQueue<DetectObjectsEvent> pendingEventQueue;
+    private int currTick;
+    private boolean canTerminate;
+
 
     /**
      * Constructor for CameraService.
@@ -34,20 +36,30 @@ public class CameraService extends MicroService {
     public CameraService(Camera camera) {
         super("CameraService");
         this.camera = camera;
-        this.eventQ = new ConcurrentLinkedQueue<>();
+        this.pendingEventQueue = new ConcurrentLinkedQueue<>();
+        this.currTick = 1;
+        this.canTerminate = false;
     }
 
     private void sendCrashCameraBroadcast(int currTick) {
         sendBroadcast(new CrashedBroadcast(camera.getErrorMsg(), getName()));
         camera.setStatus(STATUS.ERROR);
-        terminate();
+        checkIfUpdateBeforeCrash(pendingEventQueue);
         StatisticalFolder.getInstance().updateError(camera.getErrorMsg(), "Camera" + camera.getID());
         StatisticalFolder.getInstance().updateCamLastFrame(currTick, camera);
+        if (!StatisticalFolder.getInstance().getSystemIsDone()) {
+            StatisticalFolder.getInstance().setSystemIsDone(true);
+        }
+        terminate();
     }
 
     private void sendTerminatedCameraBroadcast() {
         sendBroadcast(new TerminatedBroadcast(getName()));
         camera.setStatus(STATUS.DOWN);
+        if (!StatisticalFolder.getInstance().getSystemIsDone()) {
+            StatisticalFolder.getInstance().setSystemIsDone(true);
+        }
+        StatisticalFolder.getInstance().setLastWorkTick(currTick);
         terminate();
     }
 
@@ -58,67 +70,61 @@ public class CameraService extends MicroService {
      * DetectObjectsEvents.
      */
     @Override
-    protected synchronized void initialize() {
+    protected void initialize() {
         System.out.println("[INITIALIZING] - " + getName() + " started");
         subscribeBroadcast(TickBroadcast.class, tick -> {
-            System.out.println("[TICKBROADCAST RECEIVED] - " + getName() + " got tick " + tick.getTick());
-            int currTick = tick.getTick();
             try {
-                if (camera.getStatus() == STATUS.UP) {
-                    System.out.println(
-                            "[TICKBROADCAST - DETECTING] - " + getName() + " detecting objects at tick " + currTick);
-                    StampedDetectedObjects detectedObjects = camera.getDetectedObjects(currTick);
-                    if (camera.getStatus() == STATUS.ERROR) { // camera got error during detecting objects
-                        sendCrashCameraBroadcast(currTick);
-                    } else {
-                        if (detectedObjects != null) {
-                            int doneDetectedTime = detectedObjects.getTime() + camera.getFrequency();
-                            DetectObjectsEvent newEvent = new DetectObjectsEvent(getName(), doneDetectedTime, detectedObjects);
-                            eventQ.add(newEvent);
-                        }
-                        while (!eventQ.isEmpty()) {
-                            DetectObjectsEvent event = eventQ.peek();
-                            if (event.getDetectedTime() > currTick)
-                                break; // no events are due yet
-                            else {
-                                event = eventQ.poll();
+                if (currTick == camera.getTimeLimit() || canTerminate) { // camera reached its time limit
+                    camera.setStatus(STATUS.DOWN);
+                    sendTerminatedCameraBroadcast();
+                } else {
+                    System.out.println("[TICKBROADCAST RECEIVED] - " + getName() + " got tick " + tick.getTick());
+                    currTick++;
+                    if (camera.getStatus() == STATUS.UP) {
+                        System.out.println(
+                                "[TICKBROADCAST - DETECTING] - " + getName() + " detecting objects at tick " + currTick);
+                        StampedDetectedObjects detectedObjects = camera.getDetectedObjects(currTick);
+                        if (camera.getStatus() == STATUS.ERROR) { // camera got error during detecting objects
+                            sendCrashCameraBroadcast(currTick);
+                        } else {
+                            if (detectedObjects != null) { // im don't think this is necessary
+                                int doneDetectedTime = detectedObjects.getTime() + camera.getFrequency();
+                                DetectObjectsEvent newEvent = new DetectObjectsEvent(getName(), doneDetectedTime, detectedObjects);
+                                pendingEventQueue.add(newEvent);
+                            }
+                            if (!pendingEventQueue.isEmpty() && pendingEventQueue.peek().getDetectedTime() <= currTick) {
+                                DetectObjectsEvent event = pendingEventQueue.poll();
                                 Future<?> future = sendEvent(event);
 //                                if (future.get(currTick + camera.getFrequency(), TimeUnit.SECONDS) == null) {
 //                                    sendCrashCameraBroadcast(currTick);
 //                                }
-
                                 StatisticalFolder.getInstance().addNumDetectedObjects(
                                         event.getStampedDetectedObjects().getDetectedObjects().size());
-
                             }
                         }
-                    }
-                    if (camera.getStatus() == STATUS.DOWN) {
+                    } else {
                         sendTerminatedCameraBroadcast();
                     }
-                } else {
-                    sendTerminatedCameraBroadcast();
-                    StatisticalFolder.getInstance().setSystemIsDone(true);
-                    StatisticalFolder.getInstance().setLastWorkTick(currTick);
                 }
-                if (currTick == camera.getTimeLimit()) // camera reached its time limit
-                    camera.setStatus(STATUS.DOWN);
-            } catch (Exception e) {
-                e.printStackTrace();
-                sendCrashCameraBroadcast(currTick);
-            }
+                } catch(Exception e){
+                    e.printStackTrace();
+                    sendCrashCameraBroadcast(currTick);
+                }
         });
 
         subscribeBroadcast(TerminatedBroadcast.class, terminated -> {
-            System.err.println("[TERMINATEDBROADCAST RECEIVED] - " + getName() + " got terminated broadcast from "
-                    + terminated.getTerminatorName());
-            camera.setStatus(STATUS.DOWN);
-            terminate();
+            if (terminated.getTerminatorName().equals("TimeService")) {
+                System.err.println("[TERMINATEDBROADCAST RECEIVED] - " + getName() + " got terminated broadcast from "
+                        + terminated.getTerminatorName());
+                camera.setStatus(STATUS.DOWN);
+                terminate();
+            }
         });
 
         subscribeBroadcast(CrashedBroadcast.class, crash -> {
             System.err.println("[CRASHEDBROADCAST RECEIVED] - " + getName() + " got terminated broadcast from "
                     + crash.getCrasher());
+            checkIfUpdateBeforeCrash(pendingEventQueue);
             camera.setStatus(STATUS.DOWN);
             terminate();
         });
@@ -128,16 +134,21 @@ public class CameraService extends MicroService {
             if (zero.getActiveCameras() == 0) {
                 System.out.println("[ZEROCAMSENSBROADCAST - TERMINATING] - " + getName() + " terminating because "
                         + "all cameras are inactive");
+                canTerminate = true;
             } else if (zero.getActiveSensors() == 0) {
                 System.out.println("[ZEROCAMSENSBROADCAST - TERMINATING] - " + getName() + " terminating because "
                         + "all sensors are inactive");
+                canTerminate = true;
             }
-            sendTerminatedCameraBroadcast();
+            camera.setStatus(STATUS.DOWN);
         });
-
     }
 
     public Camera getCamera() {
         return camera;
+    }
+
+    private void checkIfUpdateBeforeCrash(ConcurrentLinkedQueue<DetectObjectsEvent> pendingEventQueue) {
+        camera.cameraCheckBeforeCrash(pendingEventQueue);
     }
 }

@@ -6,8 +6,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 
+import bgu.spl.mics.application.Messages.DetectObjectsEvent;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -31,6 +33,7 @@ public class Camera {
         this.detectedObjects = detectedObjects;
         this.timeLimit = timeLimit;
         this.errorMsg = null;
+        this.lastDetectedObjects = null;
     }
 
     public Camera(int id, int frequency, String filePath, String cameraKey) {
@@ -120,5 +123,19 @@ public class Camera {
 
     public StampedDetectedObjects getLastDetectedObjects() {
         return lastDetectedObjects;
+    }
+
+    public void setLastDetectedObjects(StampedDetectedObjects lastDetectedObjects) {
+        this.lastDetectedObjects = lastDetectedObjects;
+    }
+
+    public void cameraCheckBeforeCrash(ConcurrentLinkedQueue<DetectObjectsEvent> pendingEvents) {
+        if (!pendingEvents.isEmpty()) {
+            DetectObjectsEvent event = pendingEvents.poll();
+            if (event != null){
+                StampedDetectedObjects pendingobjects = event.getStampedDetectedObjects();
+                setLastDetectedObjects(pendingobjects);
+            }
+        }
     }
 }

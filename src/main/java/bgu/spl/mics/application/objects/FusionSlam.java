@@ -115,9 +115,9 @@ public class FusionSlam {
             System.out.println(
                     "FusionSlam: Converted " + points.size() + " local cloud points to global coordinates for object "
                             + tObjID + " at tick " + trackedObj.getTime());
-            for (List<Double> pt : points) {
-                System.out.println("FusionSlam: Global point: " + pt.get(0) + ", " + pt.get(1));
-            }
+//            for (List<Double> pt : points) {
+//                System.out.println("FusionSlam: Global point: " + pt.get(0) + ", " + pt.get(1));
+//            }
             LandMark landmarkToUpdate = findLankmark(tObjID); // findLandmark(tObjID);
             if (landmarkToUpdate != null) {
                 System.out.println("FusionSlam: Updating existing landmark " + tObjID);
@@ -204,9 +204,9 @@ public class FusionSlam {
             Pose robotPose) {
         List<List<Double>> transformedPoints = new ArrayList<>();
 
-        for (CloudPoint tpt : localPts) {
-            System.out.println("FusionSlam: Local point: " + tpt.getX() + ", " + tpt.getY());
-        }
+//        for (CloudPoint tpt : localPts) {
+//            System.out.println("FusionSlam: Local point: " + tpt.getX() + ", " + tpt.getY());
+//        }
         double angleRad = robotPose.getYaw() * Math.PI / 180.0;
         double cosine = Math.cos(angleRad);
         double sine = Math.sin(angleRad);

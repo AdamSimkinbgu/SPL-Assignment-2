@@ -46,24 +46,51 @@ public class TimeService extends MicroService {
             sendBroadcast(new TerminatedBroadcast(getName()));
             terminate();
         });
-        System.out.println("[INITIALIZING] - " + getName() + " started broadcasting ticks every " + sleepTime + "ms, "
-                + TicksLifeSpan + " ticks total, starting tick " + currentTick);
-        do {
+
+        subscribeBroadcast(TickBroadcast.class, (TickBroadcast tick) -> {
             try {
-                System.out.println("[TICKBROADCAST - SENT] - " + getName() + " sent tick " + currentTick);
-                sendBroadcast(new TickBroadcast(currentTick));
-                Thread.sleep(sleepTime);
-                currentTick++;
-                StatisticalFolder.getInstance().increaseSystemRuntime();
+                if (currentTick <= TicksLifeSpan && !sf.getSystemIsDone()) {
+                    Thread.sleep(sleepTime);
+                    System.out.println("[TICKBROADCAST RECEIVED] - " + getName() + " got tick " + tick.getTick());
+                    currentTick++;
+                    sendBroadcast(new TickBroadcast(currentTick));
+                }
+                else{
+                    System.out.println("[TERMINATED] - " + getName() + " terminated because system done early from an error or reached max ticks");
+                    sendBroadcast(new TerminatedBroadcast(getName()));
+                    terminate();
+                }
             } catch (InterruptedException e) {
                 System.out.println("[INTERRUPTED] - " + "TimeService was interrupted at tick " + currentTick
                         + " with error: " + e.getMessage() + ", terminating");
-                break;
+                Thread.currentThread().interrupt();
+                sendBroadcast(new TerminatedBroadcast(getName()));
+                terminate();
             }
-        } while (currentTick <= TicksLifeSpan && sf.getSystemIsDone() == false);
-        // sendBroadcast(new TerminatedBroadcast(getName()));
-        System.out.println("[TERMINATED] - " + getName() + " terminated");
-        terminate();
-        StatisticalFolder.getInstance().createOutput();
+        });
+
+        System.out.println("[INITIALIZING] - " + getName() + " started broadcasting ticks every " + sleepTime + "ms, "
+                + TicksLifeSpan + " ticks total, starting tick " + currentTick);
+
+        sendBroadcast(new TickBroadcast(currentTick));
     }
 }
+//        do {
+//            try {
+//                System.out.println("[TICKBROADCAST - SENT] - " + getName() + " sent tick " + currentTick);
+//                sendBroadcast(new TickBroadcast(currentTick));
+//                Thread.sleep(sleepTime);
+//                currentTick++;
+//                StatisticalFolder.getInstance().increaseSystemRuntime();
+//            } catch (InterruptedException e) {
+//                System.out.println("[INTERRUPTED] - " + "TimeService was interrupted at tick " + currentTick
+//                        + " with error: " + e.getMessage() + ", terminating");
+//                break;
+//            }
+//        } while (currentTick <= TicksLifeSpan && sf.getSystemIsDone() == false);
+//        // sendBroadcast(new TerminatedBroadcast(getName()));
+//        System.out.println("[TERMINATED] - " + getName() + " terminated");
+//        terminate();
+//        StatisticalFolder.getInstance().createOutput();
+//    }
+

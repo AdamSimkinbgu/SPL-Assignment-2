@@ -161,6 +161,9 @@ public class StatisticalFolder {
     }
 
     public void updateCamLastFrame(int time, Camera cam) {
+        // adam im giving you an option to switch the logics here if you want
+        // im updated the camera last frame in the same way as the lidar
+        // so if you want just take here cam.getLastDetectedObjecs() and update the last frame
         JsonObject allCamerasLastFrames = camerasLastFrame == null ? new JsonObject() : camerasLastFrame;
         JsonObject lastCamerasFrame = allCamerasLastFrames.has("lastCamerasFrame")
                 ? allCamerasLastFrames.getAsJsonObject("lastCamerasFrame")
