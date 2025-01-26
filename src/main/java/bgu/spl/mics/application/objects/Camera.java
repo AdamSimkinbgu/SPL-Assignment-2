@@ -9,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 
+import bgu.spl.mics.application.Messages.DetectObjectsEvent;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -26,8 +27,12 @@ public class Camera {
     private String errorMsg;
     // private StampedDetectedObjects lastDetectedObjects;
 
+<<<<<<< HEAD
     public Camera(int id, int frequency, ConcurrentHashMap<Integer, StampedDetectedObjects> detectedObjects,
             int timeLimit) {
+=======
+    public Camera(int id, int frequency, ConcurrentHashMap<Integer, StampedDetectedObjects> detectedObjects, int timeLimit) {
+>>>>>>> itay
         this.id = id;
         this.frequency = frequency;
         this.status = STATUS.UP;
@@ -134,6 +139,7 @@ public class Camera {
         return lastDetectedObjects;
     }
 
+<<<<<<< HEAD
     public ArrayList<DetectedObject> getDetectedObjectsListByTime(int time) {
         ArrayList<DetectedObject> detectedObjectsList = new ArrayList<>();
         for (StampedDetectedObjects stampedDetectedObjects : detectedObjects.values()) {
@@ -142,5 +148,19 @@ public class Camera {
             }
         }
         return detectedObjectsList;
+=======
+    public void setLastDetectedObjects(StampedDetectedObjects lastDetectedObjects) {
+        this.lastDetectedObjects = lastDetectedObjects;
+    }
+
+    public void cameraCheckBeforeCrash(ConcurrentLinkedQueue<DetectObjectsEvent> pendingEvents) {
+        if (!pendingEvents.isEmpty()) {
+            DetectObjectsEvent event = pendingEvents.poll();
+            if (event != null){
+                StampedDetectedObjects pendingobjects = event.getStampedDetectedObjects();
+                setLastDetectedObjects(pendingobjects);
+            }
+        }
+>>>>>>> itay
     }
 }

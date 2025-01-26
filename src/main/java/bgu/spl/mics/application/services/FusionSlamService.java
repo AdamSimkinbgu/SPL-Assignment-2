@@ -46,7 +46,6 @@ public class FusionSlamService extends MicroService {
                 terminate();
             } else if (terminated.getTerminatorName().contains("LiDarService")) {
                 fusionSlam.decreaseSensor();
-
             } else if (terminated.getTerminatorName().contains("CameraService")) {
                 fusionSlam.decreaseCameras();
             }

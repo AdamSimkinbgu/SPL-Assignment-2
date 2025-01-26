@@ -163,6 +163,7 @@ public class StatisticalFolder {
     }
 
     public void updateCamLastFrame(int time, Camera cam) {
+<<<<<<< HEAD
         mapOfDetectedObjectsByTime.putIfAbsent(time, new ConcurrentHashMap<>());
         // we pull the camera using the time and get the c
         ConcurrentHashMap<String, List<DetectedObject>> currentCamMap = mapOfDetectedObjectsByTime.get(time);
@@ -210,6 +211,25 @@ public class StatisticalFolder {
                 }
             }
         }
+=======
+        // adam im giving you an option to switch the logics here if you want
+        // im updated the camera last frame in the same way as the lidar
+        // so if you want just take here cam.getLastDetectedObjecs() and update the last frame
+        JsonObject allCamerasLastFrames = camerasLastFrame == null ? new JsonObject() : camerasLastFrame;
+        JsonObject lastCamerasFrame = allCamerasLastFrames.has("lastCamerasFrame")
+                ? allCamerasLastFrames.getAsJsonObject("lastCamerasFrame")
+                : new JsonObject();
+        JsonObject currCamLastFrame = new JsonObject();
+        JsonObject lastFrameJson = new JsonObject();
+        lastFrameJson.addProperty("time", time);
+        // because we already know we are going to override the last frame, we can just
+        // add the new data
+        lastFrameJson.add("detectedObjects", prettyGson.toJsonTree(cam.getDetectedObjects(time)));
+        currCamLastFrame.add("Camera" + cam.getID(), lastFrameJson);
+        lastCamerasFrame.add("Camera" + cam.getID(), lastFrameJson);
+        allCamerasLastFrames.add("lastCamerasFrame", lastCamerasFrame);
+        camerasLastFrame = allCamerasLastFrames;
+>>>>>>> itay
     }
 
     public void updatelastLiDarWorkerTrackerFrame(int time, LiDarWorkerTracker lidar) {

@@ -47,33 +47,32 @@ public class TimeService extends MicroService {
             sendBroadcast(new TerminatedBroadcast(getName()));
             terminate();
         });
+
         subscribeBroadcast(TickBroadcast.class, (TickBroadcast tick) -> {
-            if (currentTick < TicksLifeSpan && sf.getSystemIsDone() == false) {
-                try {
-                    System.out.println("[TICKBROADCAST - SENT] - " + getName() + " sent tick " + currentTick);
+            try {
+                if (currentTick <= TicksLifeSpan && !sf.getSystemIsDone()) {
                     Thread.sleep(sleepTime);
+                    System.out.println("[TICKBROADCAST RECEIVED] - " + getName() + " got tick " + tick.getTick());
                     currentTick++;
-                    StatisticalFolder.getInstance().increaseSystemRuntime();
                     sendBroadcast(new TickBroadcast(currentTick));
-                } catch (InterruptedException e) {
-                    System.out.println("[INTERRUPTED] - " + "TimeService was interrupted at tick " + currentTick
-                            + " with error: " + e.getMessage() + ", terminating");
+                } else {
+                    System.out.println("[TERMINATED] - " + getName()
+                            + " terminated because system done early from an error or reached max ticks");
+                    sendBroadcast(new TerminatedBroadcast(getName()));
+                    terminate();
                 }
-            } else {
-                System.out.println("[TERMINATED] - " + getName() + " is done broadcasting ticks, terminating");
+            } catch (InterruptedException e) {
+                System.out.println("[INTERRUPTED] - " + "TimeService was interrupted at tick " + currentTick
+                        + " with error: " + e.getMessage() + ", terminating");
+                Thread.currentThread().interrupt();
                 sendBroadcast(new TerminatedBroadcast(getName()));
                 terminate();
             }
         });
-        subscribeBroadcast(TerminatedBroadcast.class, (TerminatedBroadcast terminated) -> {
-            if (terminated.getTerminatorName().equals("TimeService")) {
-                System.out.println("[TERMINATED] - " + getName() + " received TerminatedBroadcast from "
-                        + terminated.getTerminatorName() + ", terminating");
-                terminate();
-            }
-        });
+
         System.out.println("[INITIALIZING] - " + getName() + " started broadcasting ticks every " + sleepTime + "ms, "
                 + TicksLifeSpan + " ticks total, starting tick " + currentTick);
+
         sendBroadcast(new TickBroadcast(currentTick));
     }
 }
