@@ -15,11 +15,11 @@
   },
   "LiDarWorkers": {
     "LidarConfigurations":[{
-      "id": 1,
+      "id": 2,
       "frequency": 4
     },
     {
-      "id": 2,
+      "id": 1,
       "frequency": 2
     }],
     "lidars_data_path":"./lidar_data.json"

@@ -25,6 +25,8 @@ public class Camera {
     private ArrayList<DetectedObject> lastDetectedObjects;
     private int timeLimit;
     private String errorMsg;
+    private int shouldTerminateAtTick;
+
     // private StampedDetectedObjects lastDetectedObjects;
 
     public Camera(int id, int frequency, ConcurrentHashMap<Integer, StampedDetectedObjects> detectedObjects,
@@ -37,6 +39,7 @@ public class Camera {
         this.lastDetectedObjects = new ArrayList<>();
         this.errorMsg = null;
         this.lastDetectedObjects = new ArrayList<>();
+        this.shouldTerminateAtTick = -1;
     }
 
     public Camera(int id, int frequency, String filePath, String cameraKey) {
@@ -106,12 +109,21 @@ public class Camera {
             DetectedObject error = sdo.getDetectedObjects().stream().filter(DetectedObject::isError).findFirst()
                     .orElse(null);
             if (error != null) {
-                setStatus(STATUS.ERROR);
-                errorMsg = error.getDescription();
-                return null;
+//                setStatus(STATUS.ERROR);
+                this.errorMsg = error.getDescription();
+                setShouldTerminate(time);
+//                return null;
             }
         }
         return sdo;
+    }
+
+    public void setShouldTerminate(int tickFoundError) {
+        this.shouldTerminateAtTick = tickFoundError + getFrequency();
+    }
+
+    public int getShouldTerminateAtTick() {
+        return shouldTerminateAtTick;
     }
 
     public void clearDetectedObjects() {

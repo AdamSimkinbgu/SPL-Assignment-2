@@ -56,12 +56,14 @@ public class TimeService extends MicroService {
                     Thread.sleep(sleepTime);
                     sendBroadcast(new TickBroadcast(++currentTick));
                 } else {
+                    StatisticalFolder.getInstance().setLastWorkTick(currentTick);
                     System.out.println("[TERMINATED] - " + getName()
                             + " terminated because system done early from an error or reached max ticks");
                     sendBroadcast(new TerminatedBroadcast(getName()));
                     terminate();
                 }
             } catch (InterruptedException e) {
+                StatisticalFolder.getInstance().setLastWorkTick(currentTick);
                 System.out.println("[INTERRUPTED] - " + "TimeService was interrupted at tick " + currentTick
                         + " with error: " + e.getMessage() + ", terminating");
                 Thread.currentThread().interrupt();

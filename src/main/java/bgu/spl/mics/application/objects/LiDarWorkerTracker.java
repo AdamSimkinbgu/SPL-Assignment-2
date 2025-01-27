@@ -23,6 +23,7 @@ public class LiDarWorkerTracker {
     private volatile ConcurrentHashMap<Integer, List<TrackedObject>> trackedObjects; // list of tracked objects
     private LiDarDataBase lidarDataBase; // the LiDAR database
     private String errorMsg;
+    private int shouldTerminateAtTick;
 
     public LiDarWorkerTracker(int id, int frequency, String FilePath) {
         this.id = id;
@@ -32,6 +33,7 @@ public class LiDarWorkerTracker {
         this.lidarDataBase = LiDarDataBase.getInstance(FilePath);
         this.trackedObjects = new ConcurrentHashMap<>();
         this.errorMsg = null;
+        this.shouldTerminateAtTick = -1;
     }
 
     public int getID() {
@@ -83,12 +85,21 @@ public class LiDarWorkerTracker {
         for (StampedCloudPoints stampedCloudPoint : stampedCloudPoints) {
             if (stampedCloudPoint.getTime() == detectedTime) {
                 if (stampedCloudPoint.getID().equals("ERROR")) {
-                    setStatus(STATUS.ERROR);
+//                    setStatus(STATUS.ERROR);
                     setErrorMsg("Error in detected objects at time " + detectedTime);
+                    setTerminateAtTick(detectedTime);
                 }
             }
         }
+    }
 
+    private void setTerminateAtTick(int detectedTime) {
+        // set the time to terminate the worker
+        this.shouldTerminateAtTick = detectedTime + getFrequency();
+    }
+
+    public int getShouldTerminateAtTick() {
+        return shouldTerminateAtTick;
     }
 
     public STATUS getStatus() {

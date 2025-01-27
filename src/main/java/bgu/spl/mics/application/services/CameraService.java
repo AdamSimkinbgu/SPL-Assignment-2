@@ -82,30 +82,38 @@ public class CameraService extends MicroService {
                     camera.setStatus(STATUS.DOWN);
                     sendTerminatedCameraBroadcast();
                 } else {
-                    System.out.println("[TICKBROADCAST RECEIVED] - " + getName() + " got tick " + tick.getTick());
-                    if (camera.getStatus() == STATUS.UP) {
-                        System.out.println(
-                                "[TICKBROADCAST - DETECTING] - " + getName() + " detecting objects at tick "
-                                        + currTick);
-                        StampedDetectedObjects detectedObjects = camera.getDetectedObjects(currTick);
-                        if (camera.getStatus() == STATUS.ERROR) { // camera got error during detecting objects
-                            sendCrashCameraBroadcast(currTick);
-                        } else {
+                    if (camera.getShouldTerminateAtTick() >= currTick && camera.getErrorMsg() != null) {
+                        camera.setStatus(STATUS.ERROR);
+                        sendCrashCameraBroadcast(currTick);
+                    } else {
+                        System.out.println("[TICKBROADCAST RECEIVED] - " + getName() + " got tick " + tick.getTick());
+                        if (camera.getStatus() == STATUS.UP) {
+                            System.out.println(
+                                    "[TICKBROADCAST - DETECTING] - " + getName() + " detecting objects at tick "
+                                            + currTick);
+                            StampedDetectedObjects detectedObjects = camera.getDetectedObjects(currTick);
+//                            if (camera.getStatus() == STATUS.ERROR) { // camera got error during detecting objects
+//                                sendCrashCameraBroadcast(currTick);
+
                             if (detectedObjects != null) { // im don't think this is necessary
-                                DetectObjectsEvent newEvent = new DetectObjectsEvent(getName(), tickToHandleIn,
-                                        detectedObjects);
-                                pendingEventQueue.add(newEvent);
+                                if (camera.getErrorMsg() != null) {
+                                    DetectObjectsEvent newEvent = new DetectObjectsEvent(getName(), currTick, tickToHandleIn,
+                                            detectedObjects, true);
+                                    pendingEventQueue.add(newEvent);
+                                } else {
+                                    DetectObjectsEvent newEvent = new DetectObjectsEvent(getName(), currTick, tickToHandleIn,
+                                            detectedObjects, false);
+                                    pendingEventQueue.add(newEvent);
+                                }
                             }
                             if (!pendingEventQueue.isEmpty()
-                                    && pendingEventQueue.peek().getDetectedTime() <= currTick) {
+                                    && pendingEventQueue.peek().getHandledTick() <= currTick) {
                                 DetectObjectsEvent event = pendingEventQueue.poll();
                                 sendEvent(event);
-                                StatisticalFolder.getInstance().updateCamLastFrame(currTick,
+                                StatisticalFolder.getInstance().updateCamLastFrame(currTick - camera.getFrequency(),
                                         camera);
                             }
-                        }
-                    } else {
-                        sendTerminatedCameraBroadcast();
+                        } else { sendTerminatedCameraBroadcast();}
                     }
                 }
             } catch (Exception e) {
