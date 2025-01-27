@@ -2,11 +2,8 @@ package bgu.spl.mics.application.objects;
 
 import java.util.ArrayList;
 import java.util.List;
-<<<<<<< HEAD
 import java.util.concurrent.ConcurrentHashMap;
-=======
 import java.util.PriorityQueue;
->>>>>>> itay
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import bgu.spl.mics.application.Messages.DetectObjectsEvent;
@@ -26,7 +23,6 @@ public class LiDarWorkerTracker {
     private volatile ConcurrentHashMap<Integer, List<TrackedObject>> trackedObjects; // list of tracked objects
     private LiDarDataBase lidarDataBase; // the LiDAR database
     private String errorMsg;
-
 
     public LiDarWorkerTracker(int id, int frequency, String FilePath) {
         this.id = id;
@@ -111,130 +107,71 @@ public class LiDarWorkerTracker {
         return lastTrackedObjects;
     }
 
-<<<<<<< HEAD
-    public ConcurrentLinkedQueue<TrackedObject> processDetectedObjects(DetectObjectsEvent event, int detectionTime) {
-        ConcurrentLinkedQueue<TrackedObject> trackedObjects = new ConcurrentLinkedQueue<>();
-
-        // Retrieve detected objects from the event
-        StampedDetectedObjects stampedObjects = event.getStampedDetectedObjects();
-
-        // Check for errors before processing
-        checkForError(detectionTime);
-
-        if (getStatus() == STATUS.UP) {
-            for (DetectedObject obj : stampedObjects.getDetectedObjects()) {
-                String objectId = obj.getId();
-                String objectDescription = obj.getDescription();
-
-                // Retrieve cloud points for the detected object
-                StampedCloudPoints stampedCP = this.lidarDataBase.getStampedCloudPoints(detectionTime, objectId);
-                if (stampedCP == null) {
-                    continue; // Skip if no cloud points are found
-                }
-
-                // Convert raw cloud points to CloudPoint objects
-                ArrayList<CloudPoint> coordinates = new ArrayList<>();
-                for (List<Double> point : stampedCP.getPoints()) {
-                    Double x = point.get(0);
-                    Double y = point.get(1);
-                    coordinates.add(new CloudPoint(x, y));
-                }
-
-                // Create and add the TrackedObject to the queue
-                TrackedObject tracked = new TrackedObject(objectId, detectionTime, objectDescription, coordinates);
-                trackedObjects.add(tracked);
-            }
-        }
-
-        // Update the last tracked objects
-        updateLastTrackedObjects(trackedObjects);
-
-        // Update StatisticalFolder with the new tracked objects
-        StatisticalFolder.getInstance().updatelastLiDarWorkerTrackerFrame(detectionTime, this);
-
-        return trackedObjects;
-    }
-
-    public void updateLastTrackedObjects(ConcurrentLinkedQueue<TrackedObject> incomingTrackedObjects) {
-        lastTrackedObjects = incomingTrackedObjects;
-        if (incomingTrackedObjects.isEmpty()) {
-            return;
-        }
-        ArrayList<TrackedObject> trackedObjectsList = incomingTrackedObjects.stream().collect(ArrayList::new,
-                ArrayList::add,
-                ArrayList::addAll);
-        trackedObjects.put(trackedObjectsList.get(0).getTime(), trackedObjectsList);
-    }
-
-    public List<TrackedObject> getTrackedObjectsByTime(int time) {
-        if (trackedObjects.containsKey(time)) {
-            return trackedObjects.get(time);
-        }
-        return new ArrayList<>();
-    }
-
-    public void updateTrackedObjectsByTime(ConcurrentLinkedQueue<TrackedObject> trackedObjects2) {
-        if (trackedObjects2.isEmpty()) {
-            return;
-        }
-        List<TrackedObject> trackedObjectsList = new ArrayList<>(trackedObjects2);
-        trackedObjects.put(trackedObjectsList.get(0).getTime(), trackedObjectsList);
-    }
-=======
     public void updateLastTrackedObjects(ConcurrentLinkedQueue<TrackedObject> trackedObjects) {
         lastTrackedObjects = trackedObjects;
     }
 
     public void workerCheckBeforeCrash(PriorityQueue<TrackedObjectsEvent> pendingqueue) {
         if (!pendingqueue.isEmpty()) {
-           TrackedObjectsEvent toe = pendingqueue.poll();
-           if (toe != null) {
-               ConcurrentLinkedQueue<TrackedObject> lastTracked = toe.getTrackedObjects();
-               updateLastTrackedObjects(lastTracked);
-           }
+            TrackedObjectsEvent toe = pendingqueue.poll();
+            if (toe != null) {
+                ConcurrentLinkedQueue<TrackedObject> lastTracked = toe.getTrackedObjects();
+                updateLastTrackedObjects(lastTracked);
+            }
         }
     }
 
-//    public ConcurrentLinkedQueue<TrackedObject> handleDetectObject(DetectObjectsEvent event, int detectionTime) {
-//        ConcurrentLinkedQueue<TrackedObject> trackedObjects = new ConcurrentLinkedQueue<>();
-//
-//        // StampedDetectedObjects from the camera event
-//        StampedDetectedObjects stampedObjects = event.getStampedDetectedObjects();
-//
-//        // For each detected object in the camera’s list:
-//        for (DetectedObject obj : stampedObjects.getDetectedObjects()) {
-//            String objectId = obj.getId();
-//            String objectDescription = obj.getDescription();
-//
-//            // 1) Retrieve the matching cloud points from the LiDarDataBase
-//            // for the same time + object ID
-//            StampedCloudPoints stampedCP = this.lidarDataBase.getStampedCloudPoints(detectionTime, objectId);
-//            if (stampedCP == null) {
-//                // Possibly the LiDAR DB had no entry for that (time, objectId)
-//                continue;
-//            }
-//
-//            // 2) Convert the raw lists into CloudPoint objects
-//            ArrayList<CloudPoint> coordinates = new ArrayList<>();
-//            for (List<Double> listCP : stampedCP.getPoints()) {
-//                Double x = listCP.get(0);
-//                Double y = listCP.get(1);
-//                // Possibly ignore z if you only do 2D?
-//                coordinates.add(new CloudPoint(x, y));
-//            }
-//
-//            // 3) Create a new TrackedObject and add it to the queue
-//            TrackedObject tracked = new TrackedObject(objectId, detectionTime, objectDescription, coordinates);
-//            trackedObjects.add(tracked);
-//        }
-//
-//        // 4) Update stats (like “number of tracked objects”)
-//        // StatisticalFolder.getInstance().increaseNumTrackedObjects(trackedObjects.size());
-//
-//        // 5) Optionally store these as “lastTrackedObjects”
-//        updateLastTrackedObjects(trackedObjects);
-//
-//        return trackedObjects;
-//    }
->>>>>>> itay
+    public List<TrackedObject> getTrackedObjectsByTime(int time) {
+        for (int key : trackedObjects.keySet()) {
+            System.out.println(trackedObjects.get(key));
+        }
+        return trackedObjects.get(time);
+    }
+
+    // public ConcurrentLinkedQueue<TrackedObject>
+    // handleDetectObject(DetectObjectsEvent event, int detectionTime) {
+    // ConcurrentLinkedQueue<TrackedObject> trackedObjects = new
+    // ConcurrentLinkedQueue<>();
+    //
+    // // StampedDetectedObjects from the camera event
+    // StampedDetectedObjects stampedObjects = event.getStampedDetectedObjects();
+    //
+    // // For each detected object in the camera’s list:
+    // for (DetectedObject obj : stampedObjects.getDetectedObjects()) {
+    // String objectId = obj.getId();
+    // String objectDescription = obj.getDescription();
+    //
+    // // 1) Retrieve the matching cloud points from the LiDarDataBase
+    // // for the same time + object ID
+    // StampedCloudPoints stampedCP =
+    // this.lidarDataBase.getStampedCloudPoints(detectionTime, objectId);
+    // if (stampedCP == null) {
+    // // Possibly the LiDAR DB had no entry for that (time, objectId)
+    // continue;
+    // }
+    //
+    // // 2) Convert the raw lists into CloudPoint objects
+    // ArrayList<CloudPoint> coordinates = new ArrayList<>();
+    // for (List<Double> listCP : stampedCP.getPoints()) {
+    // Double x = listCP.get(0);
+    // Double y = listCP.get(1);
+    // // Possibly ignore z if you only do 2D?
+    // coordinates.add(new CloudPoint(x, y));
+    // }
+    //
+    // // 3) Create a new TrackedObject and add it to the queue
+    // TrackedObject tracked = new TrackedObject(objectId, detectionTime,
+    // objectDescription, coordinates);
+    // trackedObjects.add(tracked);
+    // }
+    //
+    // // 4) Update stats (like “number of tracked objects”)
+    // //
+    // StatisticalFolder.getInstance().increaseNumTrackedObjects(trackedObjects.size());
+    //
+    // // 5) Optionally store these as “lastTrackedObjects”
+    // updateLastTrackedObjects(trackedObjects);
+    //
+    // return trackedObjects;
+    // }
 }

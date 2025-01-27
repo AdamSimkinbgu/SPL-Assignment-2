@@ -67,7 +67,8 @@ public class MessageBusImpl implements MessageBus {
 	public <T> void complete(Event<T> e, T result) {
 		synchronized (e) { // this is shit
 			Future<T> future = (Future<T>) futurehashmap.remove(e);
-			future.resolve(result);
+			if (future != null)
+				future.resolve(result);
 		}
 		System.out.println("[FUTURE COMPLETED] - " + "Event " + e.getClass() + " completed with result " + result);
 

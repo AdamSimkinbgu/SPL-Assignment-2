@@ -51,10 +51,10 @@ public class TimeService extends MicroService {
         subscribeBroadcast(TickBroadcast.class, (TickBroadcast tick) -> {
             try {
                 if (currentTick <= TicksLifeSpan && !sf.getSystemIsDone()) {
-                    Thread.sleep(sleepTime);
                     System.out.println("[TICKBROADCAST RECEIVED] - " + getName() + " got tick " + tick.getTick());
-                    currentTick++;
-                    sendBroadcast(new TickBroadcast(currentTick));
+                    StatisticalFolder.getInstance().setLastWorkTick(currentTick);
+                    Thread.sleep(sleepTime);
+                    sendBroadcast(new TickBroadcast(++currentTick));
                 } else {
                     System.out.println("[TERMINATED] - " + getName()
                             + " terminated because system done early from an error or reached max ticks");

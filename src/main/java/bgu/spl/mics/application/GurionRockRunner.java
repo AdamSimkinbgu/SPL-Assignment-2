@@ -117,7 +117,7 @@ public class GurionRockRunner {
 
                     // Create Camera object with the computed maxTime
                     // Create Camera object and corresponding CameraService
-                    Camera camera = new Camera(id, frequency, detectedObjectsList, maxTime);
+                    Camera camera = new Camera(id, frequency, detectedObjectsList, maxTime + frequency);
                     cameraServices.add(new CameraService(camera));
                 }
             }
