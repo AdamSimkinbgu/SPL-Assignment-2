@@ -31,6 +31,7 @@ public class CameraService extends MicroService {
     private ConcurrentLinkedQueue<DetectObjectsEvent> pendingEventQueue;
     private int currTick;
     private boolean canTerminate;
+    private boolean hadChangedRunTime;
 
     /**
      * Constructor for CameraService.
@@ -43,6 +44,7 @@ public class CameraService extends MicroService {
         this.pendingEventQueue = new ConcurrentLinkedQueue<>();
         this.currTick = 0;
         this.canTerminate = false;
+        this.hadChangedRunTime = false;
     }
 
     private void sendCrashCameraBroadcast(int currTick) {
@@ -78,11 +80,13 @@ public class CameraService extends MicroService {
             try {
                 int tickToHandleIn = tick.getTick() + camera.getFrequency();
                 currTick++;
-                if (currTick == camera.getTimeLimit() || canTerminate) { // camera reached its time limit
+                if (currTick > camera.getTimeLimit() || canTerminate) { // camera reached its time limit
                     camera.setStatus(STATUS.DOWN);
                     sendTerminatedCameraBroadcast();
                 } else {
-                    if (camera.getShouldTerminateAtTick() >= currTick && camera.getErrorMsg() != null) {
+                    if (camera.getShouldTerminateAtTick() <= currTick && camera.getErrorMsg() != null) {
+                        StatisticalFolder.getInstance().setCameraError(true);
+//                        StatisticalFolder.getInstance().setLastWorkTick(currTick);
                         camera.setStatus(STATUS.ERROR);
                         sendCrashCameraBroadcast(currTick);
                     } else {
@@ -98,15 +102,18 @@ public class CameraService extends MicroService {
                             if (detectedObjects != null) { // im don't think this is necessary
                                 if (camera.getErrorMsg() != null) {
                                     DetectObjectsEvent newEvent = new DetectObjectsEvent(getName(), currTick, tickToHandleIn,
-                                            detectedObjects, true);
-                                    pendingEventQueue.add(newEvent);
+                                            detectedObjects, true, false);
+                                    if (!hadChangedRunTime) {
+                                        hadChangedRunTime = true;
+                                        StatisticalFolder.getInstance().setLastWorkTick(tickToHandleIn);
+                                    }
                                 } else {
                                     DetectObjectsEvent newEvent = new DetectObjectsEvent(getName(), currTick, tickToHandleIn,
-                                            detectedObjects, false);
+                                            detectedObjects, false, false);
                                     pendingEventQueue.add(newEvent);
                                 }
                             }
-                            if (!pendingEventQueue.isEmpty()
+                            while (!pendingEventQueue.isEmpty()
                                     && pendingEventQueue.peek().getHandledTick() <= currTick) {
                                 DetectObjectsEvent event = pendingEventQueue.poll();
                                 sendEvent(event);

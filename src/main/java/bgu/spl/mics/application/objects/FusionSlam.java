@@ -137,6 +137,7 @@ public class FusionSlam {
                 StatisticalFolder.getInstance().updateLandmarks(landmarks);
             }
         }
+
     }
 
     private synchronized void updateLandmarkCoordinates(LandMark landmark, List<List<Double>> points) {

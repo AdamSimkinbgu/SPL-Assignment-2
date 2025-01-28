@@ -42,6 +42,7 @@ public class StatisticalFolder {
     private volatile boolean systemIsDone;
     private Gson prettyGson;
     private Gson regularGson;
+    private volatile boolean cameraError;
 
     public static StatisticalFolder getInstance() {
         return StatisticalFolderHolder.instance;
@@ -63,6 +64,7 @@ public class StatisticalFolder {
         systemIsDone = false;
         errorMsg = null;
         faultySensor = null;
+        cameraError = false;
     }
 
     public int getSystemRuntime() {
@@ -100,6 +102,8 @@ public class StatisticalFolder {
     public void addNumTrackedObjects(int size) {
         numTrackedObjects.addAndGet(size);
     }
+
+
 
     public void setNumLandmarks(int size) {
         numLandmarks.set(size);
@@ -305,7 +309,6 @@ public class StatisticalFolder {
                 }
             }
         }
-
     }
 
     public void updatePoses(ConcurrentHashMap<Integer, Pose> poses) {
@@ -396,5 +399,13 @@ public class StatisticalFolder {
 
     public boolean isSystemDown() {
         return systemIsDone;
+    }
+
+    public void setCameraError(boolean cameraError) {
+        this.cameraError = cameraError;
+    }
+
+    public boolean getCameraError() {
+        return cameraError;
     }
 }

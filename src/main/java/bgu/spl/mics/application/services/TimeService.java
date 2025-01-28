@@ -18,6 +18,7 @@ public class TimeService extends MicroService {
     private int sleepTime;
     private StatisticalFolder sf;
 
+
     /**
      * Constructor for TimeService.
      *
@@ -42,34 +43,32 @@ public class TimeService extends MicroService {
     protected void initialize() {
         subscribeBroadcast(ZeroCamSensBroadcast.class, (ZeroCamSensBroadcast terminat) -> {
             System.out.println("[TERMINATED] - " + getName() + " received ZeroCamSensBroadcast, terminating");
-            StatisticalFolder.getInstance().setLastWorkTick(currentTick);
+            if (!sf.getCameraError()){ sf.setLastWorkTick(currentTick); }
             StatisticalFolder.getInstance().setSystemIsDone(true);
             sendBroadcast(new TerminatedBroadcast(getName()));
             terminate();
         });
 
         subscribeBroadcast(TickBroadcast.class, (TickBroadcast tick) -> {
-            try {
-                if (currentTick <= TicksLifeSpan && !sf.getSystemIsDone()) {
-                    System.out.println("[TICKBROADCAST RECEIVED] - " + getName() + " got tick " + tick.getTick());
-                    StatisticalFolder.getInstance().setLastWorkTick(currentTick);
-                    Thread.sleep(sleepTime);
-                    sendBroadcast(new TickBroadcast(++currentTick));
-                } else {
-                    StatisticalFolder.getInstance().setLastWorkTick(currentTick);
-                    System.out.println("[TERMINATED] - " + getName()
-                            + " terminated because system done early from an error or reached max ticks");
-                    sendBroadcast(new TerminatedBroadcast(getName()));
-                    terminate();
+                while (currentTick <= TicksLifeSpan && !sf.getSystemIsDone() && !sf.getCameraError()) {
+                    try {
+                        System.out.println("[TICKBROADCAST RECEIVED] - " + getName() + " got tick " + tick.getTick());
+                        Thread.sleep(sleepTime);
+                        sendBroadcast(new TickBroadcast(++currentTick));
+                    } catch (InterruptedException e) {
+                        if (!sf.getCameraError()) {StatisticalFolder.getInstance().setLastWorkTick(currentTick);}
+                        System.out.println("[INTERRUPTED] - " + "TimeService was interrupted at tick " + currentTick
+                                + " with error: " + e.getMessage() + ", terminating");
+                        Thread.currentThread().interrupt();
+                        sendBroadcast(new TerminatedBroadcast(getName()));
+                        terminate();
+                    }
                 }
-            } catch (InterruptedException e) {
-                StatisticalFolder.getInstance().setLastWorkTick(currentTick);
-                System.out.println("[INTERRUPTED] - " + "TimeService was interrupted at tick " + currentTick
-                        + " with error: " + e.getMessage() + ", terminating");
-                Thread.currentThread().interrupt();
+                if (!sf.getCameraError()){ sf.setLastWorkTick(currentTick); }
+                System.out.println("[TERMINATED] - " + getName()
+                        + " terminated because system done early from an error or reached max ticks");
                 sendBroadcast(new TerminatedBroadcast(getName()));
                 terminate();
-            }
         });
 
         System.out.println("[INITIALIZING] - " + getName() + " started broadcasting ticks every " + sleepTime + "ms, "

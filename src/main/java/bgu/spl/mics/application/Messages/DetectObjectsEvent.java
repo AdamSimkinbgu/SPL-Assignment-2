@@ -9,13 +9,15 @@ public class DetectObjectsEvent implements Event<Boolean> {
    private StampedDetectedObjects stampedDetectedObjects;
    private Boolean isError;
    private int handledTick;
+   private Boolean inserted;
 
-   public DetectObjectsEvent(String detectorName, int detectedTick, int handledTick, StampedDetectedObjects stampedDetectedObjects, Boolean isError) {
+   public DetectObjectsEvent(String detectorName, int detectedTick, int handledTick, StampedDetectedObjects stampedDetectedObjects, Boolean isError, Boolean inserted) {
       this.detectorName = detectorName;
       this.detectedTick = detectedTick;
       this.stampedDetectedObjects = stampedDetectedObjects;
       this.isError = isError;
-        this.handledTick = handledTick;
+      this.handledTick = handledTick;
+      this.inserted = false;
    }
 
    public String getDetectorName() {
@@ -36,5 +38,12 @@ public class DetectObjectsEvent implements Event<Boolean> {
 
     public Boolean getIsError() {
         return isError;
+    }
+
+    public Boolean getInserted() {
+        return inserted;
+    }
+    public void setInserted(Boolean inserted) {
+        this.inserted = inserted;
     }
 }

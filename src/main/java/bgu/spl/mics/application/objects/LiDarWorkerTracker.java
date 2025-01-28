@@ -52,42 +52,41 @@ public class LiDarWorkerTracker {
         return errorMsg;
     }
 
-    public ConcurrentLinkedQueue<TrackedObject> calculateTrackedObjects(StampedDetectedObjects detectedObjects) {
+    public ConcurrentLinkedQueue<TrackedObject> calculateTrackedObjects(StampedDetectedObjects detectedObjects, int detectedTick) {
         // calculate tracked objects from detected objects
         ConcurrentLinkedQueue<TrackedObject> afterCalculateObjects = new ConcurrentLinkedQueue<>();
         ArrayList<DetectedObject> detectedObject = detectedObjects.getDetectedObjects();
-        int detectedTime = detectedObjects.getTime();
-        checkForError(detectedTime);
+        checkForError(detectedTick);
         if (getStatus() == STATUS.UP) {
             for (DetectedObject detected : detectedObject) {
                 String detectedID = detected.getId();
-                StampedCloudPoints stampedCloudPoints = lidarDataBase.getStampedCloudPoints(detectedTime, detectedID);
+                StampedCloudPoints stampedCloudPoints = lidarDataBase.getStampedCloudPoints(detectedTick, detectedID);
                 if (stampedCloudPoints != null) {
                     ArrayList<CloudPoint> cloudPoints = new ArrayList<>();
                     for (List<Double> point : stampedCloudPoints.getPoints()) {
                         cloudPoints.add(new CloudPoint(point.get(0), point.get(1)));
                     }
-                    TrackedObject trackedObject = new TrackedObject(detectedID, detectedTime, detected.getDescription(),
+                    TrackedObject trackedObject = new TrackedObject(detectedID, detectedTick, detected.getDescription(),
                             cloudPoints);
                     afterCalculateObjects.add(trackedObject);
                 }
             }
             updateLastTrackedObjects(afterCalculateObjects);
         }
-        trackedObjects.put(detectedTime, new ArrayList<>(afterCalculateObjects));
+        trackedObjects.put(detectedTick, new ArrayList<>(afterCalculateObjects));
         return afterCalculateObjects;
     }
 
-    private void checkForError(int detectedTime) {
+    private void checkForError(int detectedTick) {
         // check if the there was an error in detections of objects
         // getcloudpoints from base returns list of stampedcloudpoints
         List<StampedCloudPoints> stampedCloudPoints = lidarDataBase.getStampedCloudPoints();
         for (StampedCloudPoints stampedCloudPoint : stampedCloudPoints) {
-            if (stampedCloudPoint.getTime() == detectedTime) {
+            if (stampedCloudPoint.getTime() == detectedTick) {
                 if (stampedCloudPoint.getID().equals("ERROR")) {
 //                    setStatus(STATUS.ERROR);
-                    setErrorMsg("Error in detected objects at time " + detectedTime);
-                    setTerminateAtTick(detectedTime);
+                    setErrorMsg("Error in detected objects at time " + detectedTick);
+                    setTerminateAtTick(detectedTick);
                 }
             }
         }

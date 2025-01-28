@@ -91,9 +91,9 @@ public class MessageBusImpl implements MessageBus {
 							System.out.println(
 									"[SENDBROADCAST] - " + "Broadcast " + b.getClass() + "sent to " + subscribed.getName());
 						}
-					} else {
-						System.err.println("[SENDBROADCAST ERROR] - " + "MicroService " + subscribed.getName()
-								+ " not found in microhashmap");
+//					} else {
+//						System.err.println("[SENDBROADCAST ERROR] - " + "MicroService " + subscribed.getName()
+//								+ " not found in microhashmap");
 					}
 				}
 			}
