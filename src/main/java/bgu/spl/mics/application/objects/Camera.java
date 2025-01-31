@@ -2,7 +2,6 @@ package bgu.spl.mics.application.objects;
 
 import java.io.FileReader;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -109,10 +108,11 @@ public class Camera {
             DetectedObject error = sdo.getDetectedObjects().stream().filter(DetectedObject::isError).findFirst()
                     .orElse(null);
             if (error != null) {
-//                setStatus(STATUS.ERROR);
+                // setStatus(STATUS.ERROR);
                 this.errorMsg = error.getDescription();
                 setShouldTerminate(time);
-//                return null;
+                setStatus(STATUS.ERROR);
+                // return null;
             }
         }
         return sdo;

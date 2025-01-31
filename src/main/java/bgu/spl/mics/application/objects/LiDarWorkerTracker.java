@@ -25,12 +25,12 @@ public class LiDarWorkerTracker {
     private String errorMsg;
     private int shouldTerminateAtTick;
 
-    public LiDarWorkerTracker(int id, int frequency, String FilePath) {
+    public LiDarWorkerTracker(int id, int frequency) {
         this.id = id;
         this.frequency = frequency;
         this.status = STATUS.UP;
         this.lastTrackedObjects = new ConcurrentLinkedQueue<>();
-        this.lidarDataBase = LiDarDataBase.getInstance(FilePath);
+        this.lidarDataBase = LiDarDataBase.getInstance();
         this.trackedObjects = new ConcurrentHashMap<>();
         this.errorMsg = null;
         this.shouldTerminateAtTick = -1;
@@ -52,7 +52,8 @@ public class LiDarWorkerTracker {
         return errorMsg;
     }
 
-    public ConcurrentLinkedQueue<TrackedObject> calculateTrackedObjects(StampedDetectedObjects detectedObjects, int detectedTick) {
+    public ConcurrentLinkedQueue<TrackedObject> calculateTrackedObjects(StampedDetectedObjects detectedObjects,
+            int detectedTick) {
         // calculate tracked objects from detected objects
         ConcurrentLinkedQueue<TrackedObject> afterCalculateObjects = new ConcurrentLinkedQueue<>();
         ArrayList<DetectedObject> detectedObject = detectedObjects.getDetectedObjects();
@@ -84,7 +85,7 @@ public class LiDarWorkerTracker {
         for (StampedCloudPoints stampedCloudPoint : stampedCloudPoints) {
             if (stampedCloudPoint.getTime() == detectedTick) {
                 if (stampedCloudPoint.getID().equals("ERROR")) {
-//                    setStatus(STATUS.ERROR);
+                    // setStatus(STATUS.ERROR);
                     setErrorMsg("Error in detected objects at time " + detectedTick);
                     setTerminateAtTick(detectedTick);
                 }

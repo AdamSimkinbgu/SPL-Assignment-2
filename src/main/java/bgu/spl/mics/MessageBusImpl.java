@@ -91,9 +91,10 @@ public class MessageBusImpl implements MessageBus {
 							System.out.println(
 									"[SENDBROADCAST] - " + "Broadcast " + b.getClass() + "sent to " + subscribed.getName());
 						}
-//					} else {
-//						System.err.println("[SENDBROADCAST ERROR] - " + "MicroService " + subscribed.getName()
-//								+ " not found in microhashmap");
+						// } else {
+						// System.err.println("[SENDBROADCAST ERROR] - " + "MicroService " +
+						// subscribed.getName()
+						// + " not found in microhashmap");
 					}
 				}
 			}
@@ -184,7 +185,10 @@ public class MessageBusImpl implements MessageBus {
 	public <T> Future<T> sendEvent(Event<T> e) {
 		MicroService chosen = null;
 		ConcurrentLinkedQueue<MicroService> eventQueue = eventshashmap.get(e.getClass());
-
+		if (eventQueue == null) {
+			System.out.println("[SENDEVENT ERROR] - " + "Event " + e.getClass() + " not found in eventshashmap");
+			return null;
+		}
 		synchronized (eventQueue) {
 			// if (eventQueue == null || eventQueue.isEmpty()) {
 			// System.out.println("[SENDEVENT ERROR] - " + "Event " + e.getClass() + " not
@@ -327,7 +331,13 @@ public class MessageBusImpl implements MessageBus {
 	}
 
 	public ConcurrentLinkedQueue<Message> getQueue(CameraService cameraService) {
-		return microhashmap.get(cameraService);
+		ConcurrentLinkedQueue<Message> queue = microhashmap.get(cameraService);
+		if (queue == null) {
+			System.err.println(
+					"[GETQUEUE ERROR] - " + "Error: MicroService " + cameraService.getName() + " was not registered");
+			queue = new ConcurrentLinkedQueue<>();
+		}
+		return queue;
 	}
 
 	public boolean isRegistered(MicroService service) {

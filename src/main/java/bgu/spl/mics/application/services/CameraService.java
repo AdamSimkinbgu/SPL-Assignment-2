@@ -51,7 +51,6 @@ public class CameraService extends MicroService {
         sendBroadcast(new CrashedBroadcast(camera.getErrorMsg(), getName(), currTick));
         StatisticalFolder.getInstance().updateError(camera.getErrorMsg(), "Camera" + camera.getID());
         camera.setStatus(STATUS.ERROR);
-        // checkIfUpdateBeforeCrash(pendingEventQueue);
         if (!StatisticalFolder.getInstance().getSystemIsDone()) {
             StatisticalFolder.getInstance().setSystemIsDone(true);
         }
@@ -86,7 +85,7 @@ public class CameraService extends MicroService {
                 } else {
                     if (camera.getShouldTerminateAtTick() <= currTick && camera.getErrorMsg() != null) {
                         StatisticalFolder.getInstance().setCameraError(true);
-//                        StatisticalFolder.getInstance().setLastWorkTick(currTick);
+                        // StatisticalFolder.getInstance().setLastWorkTick(currTick);
                         camera.setStatus(STATUS.ERROR);
                         sendCrashCameraBroadcast(currTick);
                     } else {
@@ -96,19 +95,22 @@ public class CameraService extends MicroService {
                                     "[TICKBROADCAST - DETECTING] - " + getName() + " detecting objects at tick "
                                             + currTick);
                             StampedDetectedObjects detectedObjects = camera.getDetectedObjects(currTick);
-//                            if (camera.getStatus() == STATUS.ERROR) { // camera got error during detecting objects
-//                                sendCrashCameraBroadcast(currTick);
+                            // if (camera.getStatus() == STATUS.ERROR) { // camera got error during
+                            // detecting objects
+                            // sendCrashCameraBroadcast(currTick);
 
                             if (detectedObjects != null) { // im don't think this is necessary
                                 if (camera.getErrorMsg() != null) {
-                                    DetectObjectsEvent newEvent = new DetectObjectsEvent(getName(), currTick, tickToHandleIn,
+                                    DetectObjectsEvent newEvent = new DetectObjectsEvent(getName(), currTick,
+                                            tickToHandleIn,
                                             detectedObjects, true, false);
                                     if (!hadChangedRunTime) {
                                         hadChangedRunTime = true;
                                         StatisticalFolder.getInstance().setLastWorkTick(tickToHandleIn);
                                     }
                                 } else {
-                                    DetectObjectsEvent newEvent = new DetectObjectsEvent(getName(), currTick, tickToHandleIn,
+                                    DetectObjectsEvent newEvent = new DetectObjectsEvent(getName(), currTick,
+                                            tickToHandleIn,
                                             detectedObjects, false, false);
                                     pendingEventQueue.add(newEvent);
                                 }
@@ -120,7 +122,9 @@ public class CameraService extends MicroService {
                                 StatisticalFolder.getInstance().updateCamLastFrame(currTick - camera.getFrequency(),
                                         camera);
                             }
-                        } else { sendTerminatedCameraBroadcast();}
+                        } else {
+                            sendTerminatedCameraBroadcast();
+                        }
                     }
                 }
             } catch (Exception e) {
@@ -161,20 +165,7 @@ public class CameraService extends MicroService {
         });
     }
 
-    private void updateLastCamFrame(StampedDetectedObjects detectedObjects, int currTick) {
-        ArrayList<DetectedObject> detectedObjectsList = new ArrayList<>();
-        detectedObjectsList.addAll(detectedObjects.getDetectedObjects());
-        camera.updateLastDetectedObjects(detectedObjectsList);
-        StatisticalFolder.getInstance().updateCamLastFrame(currTick, camera);
-        StatisticalFolder.getInstance().addNumDetectedObjects(
-                detectedObjects.getDetectedObjects().size());
-    }
-
     public Camera getCamera() {
         return camera;
-    }
-
-    private void checkIfUpdateBeforeCrash(ConcurrentLinkedQueue<DetectObjectsEvent> pendingEventQueue) {
-        camera.cameraCheckBeforeCrash(pendingEventQueue);
     }
 }

@@ -28,8 +28,8 @@ public class StatisticalFolder {
     private AtomicInteger numDetectedObjects;
     private AtomicInteger numTrackedObjects;
     private AtomicInteger numLandmarks;
-    private String outputFilePath = initializeOutputFile();
-    private JsonObject camerasLastFrame = new JsonObject();
+    private String outputFilePath;
+    private JsonObject camerasLastFrame;
     private JsonObject lidarWorkerTrackersLastFrame = new JsonObject();
     private volatile ConcurrentHashMap<Integer, ConcurrentHashMap<String, List<DetectedObject>>> mapOfDetectedObjectsByTime = new ConcurrentHashMap<>();
     private volatile ConcurrentHashMap<Integer, ConcurrentHashMap<String, List<TrackedObject>>> mapOfTrackedObjectsByTime = new ConcurrentHashMap<>();
@@ -57,10 +57,9 @@ public class StatisticalFolder {
         numDetectedObjects = new AtomicInteger(0);
         numTrackedObjects = new AtomicInteger(0);
         numLandmarks = new AtomicInteger(0);
-        File file = new File(outputFilePath);
-        file.delete();
         prettyGson = new GsonBuilder().setPrettyPrinting().create();
         regularGson = new Gson();
+        outputFilePath = null;
         systemIsDone = false;
         errorMsg = null;
         faultySensor = null;
@@ -103,8 +102,6 @@ public class StatisticalFolder {
         numTrackedObjects.addAndGet(size);
     }
 
-
-
     public void setNumLandmarks(int size) {
         numLandmarks.set(size);
     }
@@ -114,39 +111,25 @@ public class StatisticalFolder {
     }
 
     private String initializeOutputFile() {
-        Path path = Paths.get("output_file_new_test.json");
-        outputFilePath = path.toAbsolutePath().toString(); // Ensures absolute path for clarity
 
-        if (!Files.exists(path)) {
-            try {
-                Files.createFile(path);
-                System.out.println("Created new file: " + outputFilePath);
-            } catch (IOException e) {
-                System.err.println("Failed to create file: " + outputFilePath);
-                e.printStackTrace();
-                // Handle the exception as per your application's requirements
+        try {
+            Path path = Paths.get(outputFilePath);
+            Files.deleteIfExists(path.resolve("OutputError.json"));
+            Files.deleteIfExists(path.resolve("output_file.json"));
+            if (errorMsg != null) {
+                Path errorFilePath = path.resolve("OutputError.json");
+                Files.createFile(errorFilePath);
+                return path.resolve("OutputError.json").toString();
+            } else {
+                Path outputFilePath = path.resolve("output_file.json");
+                Files.createFile(outputFilePath);
+                return path.resolve("output_file.json").toString();
             }
-        } else {
-            System.out.println("File already exists: " + outputFilePath);
+        } catch (IOException e) {
+            System.err.println("An error occurred while initializing the output file: " + e.getMessage());
+            return null;
         }
-        return path.toAbsolutePath().toString();
-    }
 
-    private void checkIfOutputFileExists() {
-        File file = new File(outputFilePath);
-        if (file.exists()) {
-            return;
-        } else {
-            try {
-                if (file.createNewFile()) {
-                    return;
-                } else {
-                    System.err.println("Failed to create the file.");
-                }
-            } catch (IOException e) {
-                System.err.println("An error occurred while creating the file: " + e.getMessage());
-            }
-        }
     }
 
     public synchronized void updateLandmarks(ArrayList<LandMark> landmarks) {
@@ -168,7 +151,6 @@ public class StatisticalFolder {
 
     public void updateCamLastFrame(int time, Camera cam) {
         mapOfDetectedObjectsByTime.putIfAbsent(time, new ConcurrentHashMap<>());
-        // we pull the camera using the time and get the c
         ConcurrentHashMap<String, List<DetectedObject>> currentCamMap = mapOfDetectedObjectsByTime.get(time);
         if (currentCamMap == null) {
             currentCamMap = new ConcurrentHashMap<>();
@@ -181,37 +163,26 @@ public class StatisticalFolder {
     }
 
     private void createLastCameraFramesToJson() {
-        List<String> cameraKeys = new ArrayList<>(camerasLastTick.keySet()); // get all camera names
-        JsonObject jsonOfAllCamerasEachWithAnArrayOfJsonObjects = new JsonObject(); // create the json object to set
-        for (String cameraKey : cameraKeys) { // iterate over all cameras
-            JsonObject wholeCamJsonObject = new JsonObject(); // create a json object to hold the current camera
-            wholeCamJsonObject.addProperty("time", camerasLastTick.get(cameraKey)); // add the time of the camera
-            JsonArray cameraJson = new JsonArray(); // create an array to hold all the current camera detected objects
-            // the max time of the camera that holds a non empty list of detected objects
-
+        List<String> cameraKeys = new ArrayList<>(camerasLastTick.keySet());
+        JsonObject jsonOfAllCamerasEachWithAnArrayOfJsonObjects = new JsonObject();
+        for (String cameraKey : cameraKeys) {
+            JsonObject wholeCamJsonObject = new JsonObject();
+            wholeCamJsonObject.addProperty("time", camerasLastTick.get(cameraKey));
+            JsonArray cameraJson = new JsonArray();
             List<DetectedObject> listOfDetectedObjectByCurrCamera = mapOfDetectedObjectsByTime
                     .get(camerasLastTick.get(cameraKey))
-                    .get(cameraKey); // get the detected objects of the camera
-
-            for (DetectedObject detectedObject : listOfDetectedObjectByCurrCamera) { // iterate over all detected
-                                                                                     // objects
-                JsonObject detectedObjectJson = new JsonObject(); // create a json object to hold the current detected
-                                                                  // object
-                detectedObjectJson.addProperty("id", detectedObject.getId()); // add the id of the current detected
-                                                                              // object
-                detectedObjectJson.addProperty("description", detectedObject.getDescription()); // add the description
-                                                                                                // of the current
-                                                                                                // detected object
-                cameraJson.add(detectedObjectJson); // add the current detected object to the array of detected objects
+                    .get(cameraKey);
+            for (DetectedObject detectedObject : listOfDetectedObjectByCurrCamera) {
+                JsonObject detectedObjectJson = new JsonObject();
+                detectedObjectJson.addProperty("id", detectedObject.getId());
+                detectedObjectJson.addProperty("description", detectedObject.getDescription());
+                cameraJson.add(detectedObjectJson);
             }
-            wholeCamJsonObject.add("detectedObjects", cameraJson); // add the array of detected objects to the camera
-            jsonOfAllCamerasEachWithAnArrayOfJsonObjects.add(cameraKey, wholeCamJsonObject); // add the array of
-                                                                                             // detected
-            // objects to the camera
+            wholeCamJsonObject.add("detectedObjects", cameraJson);
+            jsonOfAllCamerasEachWithAnArrayOfJsonObjects.add(cameraKey, wholeCamJsonObject);
         }
-        camerasLastFrame = jsonOfAllCamerasEachWithAnArrayOfJsonObjects; // set the completed json object
+        camerasLastFrame = jsonOfAllCamerasEachWithAnArrayOfJsonObjects;
         for (String key : cameraKeys) {
-            // i want to see all of the ticks and their entires
             for (Integer time : mapOfDetectedObjectsByTime.keySet()) {
                 if (mapOfDetectedObjectsByTime.get(time).containsKey(key)) {
                     for (DetectedObject detectedObject : mapOfDetectedObjectsByTime.get(time).get(key)) {
@@ -220,21 +191,14 @@ public class StatisticalFolder {
                 }
             }
         }
-        // adam im giving you an option to switch the logics here if you want
-        // im updated the camera last frame in the same way as the lidar
-        // so if you want just take here cam.getLastDetectedObjecs() and update the last
-        // frame
-
     }
 
     public void updatelastLiDarWorkerTrackerFrame(int time, LiDarWorkerTracker lidar) {
-        // check if data already exists in the sf class
         ConcurrentHashMap<String, List<TrackedObject>> currentLiDarMap = mapOfTrackedObjectsByTime.get(time);
         if (currentLiDarMap == null) {
             currentLiDarMap = new ConcurrentHashMap<>();
             mapOfTrackedObjectsByTime.put(time, currentLiDarMap);
         }
-        // make concurrentLinkedQueue to list of tracked objects
         List<TrackedObject> trackedObjects = new ArrayList<>(lidar.getLastTrackedObject());
         currentLiDarMap.put("LiDarWorkerTracker" + lidar.getID(), trackedObjects);
         lidarWorkerTrackersLastTick.put("LiDarWorkerTracker" + lidar.getID(), time);
@@ -242,65 +206,39 @@ public class StatisticalFolder {
     }
 
     private void createLastLidarFramesToJson() {
-        List<String> lidarWorkerTrackerKeys = new ArrayList<>(lidarWorkerTrackersLastTick.keySet()); // get all lidar
-                                                                                                     // names
-        JsonObject jsonOfAllLidarsEachWithAnArrayOfJsonObjects = new JsonObject(); // create the json object to set
-        for (String lidarWorkerTrackerKey : lidarWorkerTrackerKeys) { // iterate over all lidars
-            JsonArray lidarWorkerTrackerJson = new JsonArray(); // create an array to hold all the tracked objects of
-                                                                // the lidar
-            int timeLidarEnded = mapOfTrackedObjectsByTime.keySet().stream()
-                    .filter(time -> !mapOfTrackedObjectsByTime.get(time).isEmpty())
-                    .max(Integer::compare).orElse(mapOfTrackedObjectsByTime.keySet().stream().max(Integer::compare)
-                            .orElse(0)); // the max time of the lidar that holds a non empty list of tracked objects
+        List<String> lidarWorkerTrackerKeys = new ArrayList<>(lidarWorkerTrackersLastTick.keySet());
+        JsonObject jsonOfAllLidarsEachWithAnArrayOfJsonObjects = new JsonObject();
+        for (String lidarWorkerTrackerKey : lidarWorkerTrackerKeys) {
+            JsonArray lidarWorkerTrackerJson = new JsonArray();
+            int timeLidarEnded = lidarWorkerTrackersLastTick.get(lidarWorkerTrackerKey);
 
             List<TrackedObject> listOfTrackedObjectByCurrLidar = mapOfTrackedObjectsByTime.get(timeLidarEnded)
-                    .get(lidarWorkerTrackerKey); // get the tracked objects of the lidar
+                    .get(lidarWorkerTrackerKey);
             try {
-                for (TrackedObject trackedObject : listOfTrackedObjectByCurrLidar) { // iterate over all tracked objects
-                    JsonObject trackedObjectJson = new JsonObject(); // create a json object to hold the current tracked
-                                                                     // object
-                    trackedObjectJson.addProperty("id", trackedObject.getID()); // add the id of the current tracked
-                                                                                // object
-                    trackedObjectJson.addProperty("time", trackedObject.getTime()); // add the time of the current
-                                                                                    // tracked
-                                                                                    // object
-                    trackedObjectJson.addProperty("description", trackedObject.getDescription()); // add the description
-                                                                                                  // of
-                                                                                                  // the current tracked
-                                                                                                  // object
-                    JsonArray trackedObjectCoordinates = new JsonArray(); // create an array to hold the coordinates of
-                                                                          // the
-                                                                          // current tracked object
-                    for (CloudPoint cloudPoint : trackedObject.getPoints()) { // iterate over all the points of the
-                                                                              // current
-                                                                              // tracked object
-                        JsonObject cloudPointJson = new JsonObject(); // create a json object to hold the current point
-                        cloudPointJson.addProperty("x", cloudPoint.getX()); // add the x coordinate of the point
-                        cloudPointJson.addProperty("y", cloudPoint.getY()); // add the y coordinate of the point
-                        trackedObjectCoordinates.add(cloudPointJson); // add the point to the array
+                for (TrackedObject trackedObject : listOfTrackedObjectByCurrLidar) {
+                    JsonObject trackedObjectJson = new JsonObject();
+                    trackedObjectJson.addProperty("id", trackedObject.getID());
+                    trackedObjectJson.addProperty("time", trackedObject.getTime());
+                    trackedObjectJson.addProperty("description", trackedObject.getDescription());
+                    JsonArray trackedObjectCoordinates = new JsonArray();
+                    for (CloudPoint cloudPoint : trackedObject.getPoints()) {
+                        JsonObject cloudPointJson = new JsonObject();
+                        cloudPointJson.addProperty("x", cloudPoint.getX());
+                        cloudPointJson.addProperty("y", cloudPoint.getY());
+                        trackedObjectCoordinates.add(cloudPointJson);
                     }
-                    trackedObjectJson.add("coordinates", trackedObjectCoordinates); // add the array of coordinates to
-                                                                                    // the
-                                                                                    // current tracked object
-                    lidarWorkerTrackerJson.add(trackedObjectJson); // add the current tracked object to the array of
-                                                                   // tracked
-                                                                   // objects
+                    trackedObjectJson.add("coordinates", trackedObjectCoordinates);
+                    lidarWorkerTrackerJson.add(trackedObjectJson);
                 }
             } catch (Exception e) {
                 System.out.println("Error in creating the last lidar frame");
                 jsonOfAllLidarsEachWithAnArrayOfJsonObjects.add(lidarWorkerTrackerKey, new JsonObject());
                 return;
             }
-            jsonOfAllLidarsEachWithAnArrayOfJsonObjects.add(lidarWorkerTrackerKey, lidarWorkerTrackerJson); // add the
-                                                                                                            // array of
-                                                                                                            // tracked
-                                                                                                            // objects
-                                                                                                            // to the
-                                                                                                            // lidar
+            jsonOfAllLidarsEachWithAnArrayOfJsonObjects.add(lidarWorkerTrackerKey, lidarWorkerTrackerJson);
         }
-        lidarWorkerTrackersLastFrame = jsonOfAllLidarsEachWithAnArrayOfJsonObjects; // set the completed json object
+        lidarWorkerTrackersLastFrame = jsonOfAllLidarsEachWithAnArrayOfJsonObjects;
         for (String key : lidarWorkerTrackerKeys) {
-            // i want to see all of the ticks and their entires
             for (Integer time : mapOfTrackedObjectsByTime.keySet()) {
                 if (mapOfTrackedObjectsByTime.get(time).containsKey(key)) {
                     for (TrackedObject trackedObject : mapOfTrackedObjectsByTime.get(time).get(key)) {
@@ -330,7 +268,7 @@ public class StatisticalFolder {
     }
 
     public void createOutput() {
-        checkIfOutputFileExists();
+        outputFilePath = initializeOutputFile();
         createLastCameraFramesToJson();
         createLastLidarFramesToJson();
         JsonObject output = new JsonObject();
@@ -371,10 +309,9 @@ public class StatisticalFolder {
     private void addErrorOutput(JsonObject output) {
         output.addProperty("error", errorMsg);
         output.addProperty("faultySensor", faultySensor);
-        output.add("lastCameraFrames", camerasLastFrame);
-        output.add("lastLiDarFrames", lidarWorkerTrackersLastFrame);
+        output.add("lastCamerasFrame", camerasLastFrame);
+        output.add("lastLiDarWorkerTrackersFrame", lidarWorkerTrackersLastFrame);
         List<JsonObject> posesToOutput = new ArrayList<>();
-        // we need to filter the poses to only get the ones upto the system runtime
         for (Integer key : poses.keySet()) {
             if (key <= systemRuntime.get()) {
                 posesToOutput.add(poses.get(key));
@@ -407,5 +344,9 @@ public class StatisticalFolder {
 
     public boolean getCameraError() {
         return cameraError;
+    }
+
+    public void setConfigPath(String configPath) {
+        outputFilePath = configPath;
     }
 }

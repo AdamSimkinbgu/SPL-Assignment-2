@@ -2,10 +2,12 @@ package bgu.spl;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import bgu.spl.mics.application.objects.CloudPoint;
 import bgu.spl.mics.application.objects.FusionSlam;
@@ -15,6 +17,7 @@ import bgu.spl.mics.application.objects.TrackedObject;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FusionSlamTest {
 
    private FusionSlam fusionSlam;
@@ -61,7 +64,7 @@ class FusionSlamTest {
             new CloudPoint(2, 2),
             new CloudPoint(3, 3)));
 
-      List<CloudPoint> globalPoints = fusionSlam.convertToGlobalCoordinates(localPoints, pose);
+      List<List<Double>> globalPoints = fusionSlam.convertToGlobalCoordinates(localPoints, pose);
 
       assertNotNull(globalPoints, "Global points should not be null.");
       assertEquals(3, globalPoints.size(), "Global points size should match local points size.");
@@ -79,13 +82,15 @@ class FusionSlamTest {
       Pose pose = new Pose(1, 0, 0, 1);
       fusionSlam.addPose(pose);
 
+      ConcurrentLinkedQueue<TrackedObject> trackedObjects = new ConcurrentLinkedQueue<>();
       TrackedObject trackedObject = new TrackedObject("L1", 1, "Landmark",
             new ArrayList<>(Arrays.asList(
                   new CloudPoint(1, 1),
                   new CloudPoint(2, 2),
                   new CloudPoint(3, 3))));
 
-      fusionSlam.analyzeObjects(Arrays.asList(trackedObject));
+      trackedObjects.add(trackedObject);
+      fusionSlam.analyzeObjects(trackedObjects);
 
       List<LandMark> landmarks = fusionSlam.getLandmarks();
       assertEquals(1, landmarks.size(), "One landmark should be added.");
@@ -102,9 +107,11 @@ class FusionSlamTest {
    @Test
    void testProcessTrackedObject_NoPose() {
       ArrayList<CloudPoint> coordinates = new ArrayList<>(Arrays.asList(new CloudPoint(1, 1)));
+      ConcurrentLinkedQueue<TrackedObject> trackedObjects = new ConcurrentLinkedQueue<>();
       TrackedObject trackedObject = new TrackedObject("L1", 2, "Landmark", coordinates);
 
-      // fusionSlam.analyzeObjects(Arrays.asList(trackedObject));
+      trackedObjects.add(trackedObject);
+      fusionSlam.analyzeObjects(trackedObjects);
 
       List<LandMark> landmarks = fusionSlam.getLandmarks();
       assertTrue(landmarks.isEmpty(), "No landmarks should be added if pose is missing.");

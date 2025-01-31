@@ -36,6 +36,14 @@ public class LiDarDataBase {
         return SingletonHolder.instance;
     }
 
+    public static LiDarDataBase getInstance() {
+        if (LiDarDataBase.filePath == null) {
+            throw new IllegalStateException(
+                    "LiDarDataBase must be initialized with a file path before calling getInstance()");
+        }
+        return LiDarDataBase.getInstance(filePath);
+    }
+
     private LiDarDataBase() {
         this.stampedCloudPoints = loadCloudPoints(filePath);
         // System.out.println("CloudPoints: " + stampedCloudPoints);
